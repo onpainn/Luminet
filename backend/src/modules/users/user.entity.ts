@@ -6,11 +6,15 @@ import {
   CreateDateColumn,
   OneToMany,
   DeleteDateColumn,
+  Index,
+  UpdateDateColumn,
 } from 'typeorm';
 import { Post } from '../posts/post.entity';
 import { RefreshSession } from '../refresh-sessions/refresh-session.entity';
 
 @Entity('users')
+@Index(['email'])
+@Index(['username'])
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
@@ -28,11 +32,14 @@ export class User {
   @CreateDateColumn()
   createdAt: Date;
 
+  @UpdateDateColumn()
+  updatedAt: Date;
+
   @OneToMany(() => Post, (post) => post.author)
   posts: Post[];
 
-  @DeleteDateColumn()
-  deletedAt: Date;
+  @DeleteDateColumn({ nullable: true })
+  deletedAt: Date | null;
 
   @Column({ default: true })
   isActive: boolean;
