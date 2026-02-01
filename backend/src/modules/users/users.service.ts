@@ -2,6 +2,8 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -9,6 +11,8 @@ import * as bcrypt from 'bcrypt';
 
 import { User } from './user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class UsersService {
@@ -69,11 +73,88 @@ export class UsersService {
   }
 
   // =========================
-  // Refresh token
+  // Поменять профиль
   // =========================
-  async updateRefreshToken(userId: number, refreshTokenHash: string | null) {
+  async updateMe(userId: number, dto: UpdateUserDto) {
+    if (dto.email) {
+      const emailExists = await this.usersRepository.findOne({
+        where: { email: dto.email },
+      });
+
+      if (emailExists && emailExists.id !== userId) {
+        throw new BadRequestException('Email already in use');
+      }
+    }
+
+    if (dto.username) {
+      const usernameExists = await this.usersRepository.findOne({
+        where: { username: dto.username },
+      });
+
+      if (usernameExists && usernameExists.id !== userId) {
+        throw new BadRequestException('Username already in use');
+      }
+    }
+
+    await this.usersRepository.update(userId, dto);
+    return this.findById(userId);
+  }
+
+  // =========================
+  // Поменять пароль
+  // =========================
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+    const user = await this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :id', { id: userId })
+      .getOne();
+
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    const isValid = await bcrypt.compare(dto.oldPassword, user.password);
+    if (!isValid) {
+      throw new UnauthorizedException('Old password is incorrect');
+    }
+
+    const newPasswordHash = await bcrypt.hash(
+      dto.newPassword,
+      this.SALT_ROUNDS,
+    );
+
     await this.usersRepository.update(userId, {
-      refreshTokenHash,
+      password: newPasswordHash,
     });
+
+    return { success: true };
+  }
+
+  // =========================
+  // Удалить пользователя
+  // =========================
+  async deleteProfile(userId: number, password: string) {
+    const user = await this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.id = :id', { id: userId })
+      .getOne();
+
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid password');
+    }
+
+    user.isActive = false;
+    user.deletedAt = new Date();
+
+    await this.usersRepository.save(user);
+
+    return { success: true };
   }
 }

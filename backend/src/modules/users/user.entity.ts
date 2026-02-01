@@ -5,8 +5,10 @@ import {
   Column,
   CreateDateColumn,
   OneToMany,
+  DeleteDateColumn,
 } from 'typeorm';
 import { Post } from '../posts/post.entity';
+import { RefreshSession } from '../refresh-sessions/refresh-session.entity';
 
 @Entity('users')
 export class User {
@@ -23,13 +25,18 @@ export class User {
   @Column()
   password: string;
 
-  @Exclude()
-  @Column({ type: 'text', nullable: true })
-  refreshTokenHash: string | null;
-
   @CreateDateColumn()
   createdAt: Date;
 
   @OneToMany(() => Post, (post) => post.author)
   posts: Post[];
+
+  @DeleteDateColumn()
+  deletedAt: Date;
+
+  @Column({ default: true })
+  isActive: boolean;
+
+  @OneToMany(() => RefreshSession, (session) => session.user)
+  refreshSessions: RefreshSession[];
 }

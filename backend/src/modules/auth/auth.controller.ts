@@ -1,31 +1,97 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import { User } from '../users/user.entity';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import {
+  REFRESH_COOKIE,
+  REFRESH_COOKIE_OPTIONS,
+} from 'src/common/constants/auth-cookies';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // =========================
+  // LOGIN
+  // =========================
   @Post('login')
-  login(@Body() body: { email: string; password: string }) {
-    return this.authService.login(body.email, body.password);
-  }
-  @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
-  }
-  @Post('refresh')
-  refresh(@Body() dto: RefreshTokenDto) {
-    return this.authService.refresh(dto.refreshToken);
+  async login(
+    @Body() body: { email: string; password: string },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { refreshToken, ...data } = await this.authService.login(
+      body.email,
+      body.password,
+      req,
+    );
+
+    res.cookie(REFRESH_COOKIE, refreshToken, REFRESH_COOKIE_OPTIONS);
+
+    return data;
   }
 
-  @UseGuards(JwtAuthGuard)
+  // =========================
+  // REGISTER
+  // =========================
+  @Post('register')
+  async register(
+    @Body() dto: RegisterDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { refreshToken, ...data } = await this.authService.register(dto, req);
+
+    res.cookie(REFRESH_COOKIE, refreshToken, REFRESH_COOKIE_OPTIONS);
+
+    return data;
+  }
+
+  // =========================
+  // REFRESH
+  // =========================
+  @Post('refresh')
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+
+    if (!refreshToken) {
+      throw new UnauthorizedException();
+    }
+
+    const { refreshToken: newRefreshToken, ...data } =
+      await this.authService.refresh(refreshToken, req);
+
+    res.cookie(REFRESH_COOKIE, newRefreshToken, REFRESH_COOKIE_OPTIONS);
+
+    return data;
+  }
+
+  // =========================
+  // LOGOUT
+  // =========================
   @Post('logout')
-  logout(@CurrentUser() user: User) {
-    return this.authService.logout(user.id);
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+
+    if (refreshToken) {
+      await this.authService.logout(refreshToken);
+    }
+
+    res.clearCookie(REFRESH_COOKIE, {
+      path: '/auth/refresh',
+    });
+
+    return { success: true };
   }
 }
