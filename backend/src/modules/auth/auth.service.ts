@@ -64,7 +64,7 @@ export class AuthService {
     let payload: RefreshPayload;
 
     try {
-      payload = this.jwtService.verify(refreshToken);
+      payload = this.jwtService.verify<RefreshPayload>(refreshToken);
     } catch {
       throw new UnauthorizedException();
     }

@@ -6,9 +6,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-
 import { User } from './user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -22,15 +21,6 @@ export class UsersService {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
   ) {}
-
-  // =========================
-  // HELPERS
-  // =========================
-  safeUser(user: User) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _password, ...rest } = user;
-    return rest;
-  }
 
   private ensureActive(user: User) {
     if (!user.isActive) {
@@ -74,12 +64,10 @@ export class UsersService {
   }
 
   // =========================
-  // JWT / GUARDS
+  // JWT
   // =========================
   async findById(id: number): Promise<User> {
-    const user = await this.usersRepository.findOne({
-      where: { id },
-    });
+    const user = await this.usersRepository.findOne({ where: { id } });
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -92,31 +80,31 @@ export class UsersService {
   // =========================
   // UPDATE PROFILE
   // =========================
-  async updateMe(userId: number, dto: UpdateUserDto) {
-    await this.findById(userId);
+  async updateMe(userId: number, dto: UpdateUserDto): Promise<User> {
+    const user = await this.findById(userId);
 
-    if (dto.email) {
+    if (dto.email && dto.email !== user.email) {
       const emailExists = await this.usersRepository.findOne({
         where: { email: dto.email },
       });
 
-      if (emailExists && emailExists.id !== userId) {
+      if (emailExists) {
         throw new BadRequestException('Email already in use');
       }
     }
 
-    if (dto.username) {
+    if (dto.username && dto.username !== user.username) {
       const usernameExists = await this.usersRepository.findOne({
         where: { username: dto.username },
       });
 
-      if (usernameExists && usernameExists.id !== userId) {
+      if (usernameExists) {
         throw new BadRequestException('Username already in use');
       }
     }
 
     await this.usersRepository.update(userId, dto);
-    return this.safeUser(await this.findById(userId));
+    return this.findById(userId);
   }
 
   // =========================
@@ -148,8 +136,6 @@ export class UsersService {
     await this.usersRepository.update(userId, {
       password: newPasswordHash,
     });
-
-    return { success: true };
   }
 
   // =========================
@@ -177,7 +163,24 @@ export class UsersService {
     user.deletedAt = new Date();
 
     await this.usersRepository.save(user);
+  }
 
-    return { success: true };
+  // =========================
+  // PUBLIC PROFILE
+  // =========================
+  async findPublicByUsername(username: string): Promise<User> {
+    const user = await this.usersRepository.findOne({
+      where: {
+        username,
+        isActive: true,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
   }
 }

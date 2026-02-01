@@ -1,4 +1,12 @@
-import { Controller, Get, Body, UseGuards, Patch, Post } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Body,
+  UseGuards,
+  Patch,
+  Post,
+  Param,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UsersService } from './users.service';
@@ -53,5 +61,12 @@ export class UsersController {
   ) {
     await this.usersService.deleteProfile(user.id, dto.password);
     return { success: true };
+  }
+
+  @Get(':username')
+  getPublicProfile(@Param('username') username: string) {
+    return this.usersService
+      .findPublicByUsername(username)
+      .then(toUserPublicDto);
   }
 }
