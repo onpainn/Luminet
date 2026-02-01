@@ -1,7 +1,24 @@
-import { IsString, MinLength } from 'class-validator';
+import {
+  IsArray,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreatePostDto {
   @IsString()
-  @MinLength(1)
+  @IsNotEmpty()
   content: string;
+
+  @IsNumber()
+  moodId: number;
+
+  @IsNumber()
+  topicId: number;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
 }
