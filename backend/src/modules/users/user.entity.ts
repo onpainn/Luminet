@@ -23,6 +23,10 @@ export class User {
   @Column()
   password: string;
 
+  @Exclude()
+  @Column({ type: 'text', nullable: true })
+  refreshTokenHash: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

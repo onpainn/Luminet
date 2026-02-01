@@ -10,8 +10,11 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
-  ) { }
+  ) {}
 
+  // =========================
+  // LOGIN
+  // =========================
   async login(email: string, password: string) {
     const user = await this.usersService.findByEmail(email);
 
@@ -25,30 +28,78 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.buildAuthResponse(user);
+    return this.issueTokens(user);
   }
 
+  // =========================
+  // REGISTER
+  // =========================
   async register(dto: RegisterDto) {
     const user = await this.usersService.create(dto);
-
-    return this.buildAuthResponse(user);
+    return this.issueTokens(user);
   }
 
   // =========================
-  // Helpers
+  // REFRESH
   // =========================
+  async refresh(refreshToken: string) {
+    let payload: { sub: number };
 
-  private buildAuthResponse(user: User) {
+    try {
+      payload = this.jwtService.verify(refreshToken);
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const user = await this.usersService.findById(payload.sub);
+
+    if (!user || !user.refreshTokenHash) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const isValid = await bcrypt.compare(refreshToken, user.refreshTokenHash);
+
+    if (!isValid) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    return this.issueTokens(user);
+  }
+
+  // =========================
+  // LOGOUT
+  // =========================
+  async logout(userId: number) {
+    await this.usersService.updateRefreshToken(userId, null);
+    return { success: true };
+  }
+
+  // =========================
+  // HELPERS
+  // =========================
+  private async issueTokens(user: User) {
     const payload = { sub: user.id };
+
+    const accessToken = this.jwtService.sign(payload, {
+      expiresIn: '15m',
+    });
+
+    const refreshToken = this.jwtService.sign(payload, {
+      expiresIn: '7d',
+    });
+
+    const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
+    await this.usersService.updateRefreshToken(user.id, refreshTokenHash);
 
     return {
       user: this.sanitizeUser(user),
-      accessToken: this.jwtService.sign(payload),
+      accessToken,
+      refreshToken,
     };
   }
 
   private sanitizeUser(user: User) {
-    const { password: _password, ...rest } = user;
+    const { password, refreshTokenHash, ...rest } = user;
     return rest;
   }
 }

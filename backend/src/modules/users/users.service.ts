@@ -67,4 +67,13 @@ export class UsersService {
 
     return user;
   }
+
+  // =========================
+  // Refresh token
+  // =========================
+  async updateRefreshToken(userId: number, refreshTokenHash: string | null) {
+    await this.usersRepository.update(userId, {
+      refreshTokenHash,
+    });
+  }
 }
