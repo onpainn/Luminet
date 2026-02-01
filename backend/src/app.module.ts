@@ -6,6 +6,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { TopicsModule } from './modules/topics/topics.module';
 import { TagsModule } from './modules/tags/tags.module';
+import { MoodsModule } from './modules/moods/moods.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { TagsModule } from './modules/tags/tags.module';
     PostsModule,
     TopicsModule,
     TagsModule,
+    MoodsModule,
   ],
 })
 export class AppModule {}

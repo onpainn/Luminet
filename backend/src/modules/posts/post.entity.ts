@@ -8,16 +8,16 @@ import {
   ManyToMany,
 } from 'typeorm';
 import { User } from '../users/user.entity';
-import { PostMood } from './enums/post-mood.enum';
 import { Tag } from '../tags/tag.entity';
 import { Topic } from '../topics/topic.entity';
+import { Mood } from '../moods/mood.entity';
 
-@Entity()
+@Entity('posts')
 export class Post {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User, user => user.posts, {
+  @ManyToOne(() => User, (user) => user.posts, {
     onDelete: 'CASCADE',
   })
   author: User;
@@ -28,11 +28,11 @@ export class Post {
   @CreateDateColumn()
   createdAt: Date;
 
-  @ManyToOne(() => Topic, { eager: true })
+  @ManyToOne(() => Topic, { eager: true, nullable: false })
   topic: Topic;
 
-  @Column({ type: 'enum', enum: PostMood })
-  mood: PostMood;
+  @ManyToOne(() => Mood, { eager: true, nullable: false })
+  mood: Mood;
 
   @ManyToMany(() => Tag, { eager: true })
   @JoinTable()
