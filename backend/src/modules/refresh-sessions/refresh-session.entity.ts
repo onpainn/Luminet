@@ -32,7 +32,6 @@ export class RefreshSession {
   @Column({ type: 'timestamptz' })
   expiresAt: Date;
 
-  // 🔥 ВАЖНО: nullable + правильный тип
   @Column({ type: 'timestamptz', nullable: true })
   revokedAt: Date | null;
 }

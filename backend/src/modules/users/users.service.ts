@@ -24,7 +24,22 @@ export class UsersService {
   ) {}
 
   // =========================
-  // Регистрация
+  // HELPERS
+  // =========================
+  safeUser(user: User) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...rest } = user;
+    return rest;
+  }
+
+  private ensureActive(user: User) {
+    if (!user.isActive) {
+      throw new UnauthorizedException('User is deactivated');
+    }
+  }
+
+  // =========================
+  // REGISTRATION
   // =========================
   async create(dto: CreateUserDto): Promise<User> {
     const exists = await this.usersRepository.findOne({
@@ -41,13 +56,14 @@ export class UsersService {
       email: dto.email,
       username: dto.username,
       password,
+      isActive: true,
     });
 
     return this.usersRepository.save(user);
   }
 
   // =========================
-  // Логин
+  // LOGIN
   // =========================
   async findByEmail(email: string): Promise<User | null> {
     return this.usersRepository
@@ -58,7 +74,7 @@ export class UsersService {
   }
 
   // =========================
-  // JWT / Guards
+  // JWT / GUARDS
   // =========================
   async findById(id: number): Promise<User> {
     const user = await this.usersRepository.findOne({
@@ -69,13 +85,16 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    this.ensureActive(user);
     return user;
   }
 
   // =========================
-  // Поменять профиль
+  // UPDATE PROFILE
   // =========================
   async updateMe(userId: number, dto: UpdateUserDto) {
+    await this.findById(userId);
+
     if (dto.email) {
       const emailExists = await this.usersRepository.findOne({
         where: { email: dto.email },
@@ -97,11 +116,11 @@ export class UsersService {
     }
 
     await this.usersRepository.update(userId, dto);
-    return this.findById(userId);
+    return this.safeUser(await this.findById(userId));
   }
 
   // =========================
-  // Поменять пароль
+  // CHANGE PASSWORD
   // =========================
   async changePassword(userId: number, dto: ChangePasswordDto) {
     const user = await this.usersRepository
@@ -113,6 +132,8 @@ export class UsersService {
     if (!user) {
       throw new UnauthorizedException();
     }
+
+    this.ensureActive(user);
 
     const isValid = await bcrypt.compare(dto.oldPassword, user.password);
     if (!isValid) {
@@ -132,7 +153,7 @@ export class UsersService {
   }
 
   // =========================
-  // Удалить пользователя
+  // DELETE / DEACTIVATE
   // =========================
   async deleteProfile(userId: number, password: string) {
     const user = await this.usersRepository
@@ -144,6 +165,8 @@ export class UsersService {
     if (!user) {
       throw new UnauthorizedException();
     }
+
+    this.ensureActive(user);
 
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
