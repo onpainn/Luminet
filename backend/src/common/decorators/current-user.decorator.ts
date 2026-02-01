@@ -1,15 +1,10 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
-import { User } from '../../modules/users/user.entity';
+import { AuthUser } from '../../modules/auth/types/auth-user.type';
 
 export const CurrentUser = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): User => {
+  (_data: unknown, ctx: ExecutionContext): AuthUser => {
     const request = ctx.switchToHttp().getRequest<Request>();
-
-    if (!request.user) {
-      throw new Error('CurrentUser decorator used without JwtAuthGuard');
-    }
-
-    return request.user as User;
+    return request.user as AuthUser;
   },
 );

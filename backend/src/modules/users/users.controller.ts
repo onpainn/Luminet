@@ -1,11 +1,12 @@
 import { Controller, Get, Body, UseGuards, Patch, Post } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User } from './user.entity';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { DeleteProfileDto } from './dto/delete-profile.dto';
+import { toUserPublicDto } from './user.mapper';
+import type { AuthUser } from '../auth/types/auth-user.type';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
@@ -16,31 +17,41 @@ export class UsersController {
   // CURRENT USER
   // =========================
   @Get('me')
-  getMe(@CurrentUser() user: User) {
-    return this.usersService.safeUser(user);
+  async getMe(@CurrentUser() user: AuthUser) {
+    const fullUser = await this.usersService.findById(user.id);
+    return toUserPublicDto(fullUser);
   }
 
   // =========================
   // UPDATE PROFILE
   // =========================
   @Patch('me')
-  updateMe(@CurrentUser() user: User, @Body() dto: UpdateUserDto) {
-    return this.usersService.updateMe(user.id, dto);
+  async updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateUserDto) {
+    const updated = await this.usersService.updateMe(user.id, dto);
+    return toUserPublicDto(updated);
   }
 
   // =========================
   // CHANGE PASSWORD
   // =========================
   @Patch('me/password')
-  changePassword(@CurrentUser() user: User, @Body() dto: ChangePasswordDto) {
-    return this.usersService.changePassword(user.id, dto);
+  async changePassword(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    await this.usersService.changePassword(user.id, dto);
+    return { success: true };
   }
 
   // =========================
   // DELETE / DEACTIVATE PROFILE
   // =========================
   @Post('me/delete')
-  deleteProfile(@CurrentUser() user: User, @Body() dto: DeleteProfileDto) {
-    return this.usersService.deleteProfile(user.id, dto.password);
+  async deleteProfile(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: DeleteProfileDto,
+  ) {
+    await this.usersService.deleteProfile(user.id, dto.password);
+    return { success: true };
   }
 }
