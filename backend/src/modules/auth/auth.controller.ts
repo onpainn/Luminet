@@ -88,9 +88,7 @@ export class AuthController {
       await this.authService.logout(refreshToken);
     }
 
-    res.clearCookie(REFRESH_COOKIE, {
-      path: '/auth/refresh',
-    });
+    res.clearCookie(REFRESH_COOKIE, REFRESH_COOKIE_OPTIONS);
 
     return { success: true };
   }
