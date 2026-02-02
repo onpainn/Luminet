@@ -42,8 +42,8 @@ export class RefreshSessionsService {
   // =========================
   // FIND ALL BY USER
   // =========================
-  async findByUser(userId: number): Promise<RefreshSession[]> {
-    return this.repo.find({
+  async findByUser(userId: number, currentSessionId?: string) {
+    const sessions = await this.repo.find({
       where: {
         user: { id: userId },
       },
@@ -51,6 +51,15 @@ export class RefreshSessionsService {
         createdAt: 'DESC',
       },
     });
+
+    return sessions.map((session) => ({
+      id: session.id,
+      ip: session.ip,
+      userAgent: session.userAgent,
+      createdAt: session.createdAt,
+      revokedAt: session.revokedAt,
+      isCurrent: session.id === currentSessionId,
+    }));
   }
 
   // =========================
