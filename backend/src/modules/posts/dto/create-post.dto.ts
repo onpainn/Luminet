@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -11,9 +12,11 @@ export class CreatePostDto {
   @IsNotEmpty()
   content: string;
 
+  @IsInt()
   @IsNumber()
   moodId: number;
 
+  @IsInt()
   @IsNumber()
   topicId: number;
 

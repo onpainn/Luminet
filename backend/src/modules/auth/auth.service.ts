@@ -7,16 +7,11 @@ import { User } from '../users/user.entity';
 import { RefreshSessionsService } from '../refresh-sessions/refresh-sessions.service';
 import { Request } from 'express';
 import { randomUUID } from 'crypto';
+import { AuthResponse, AuthUser } from './types/auth-user.type';
 
 interface RefreshPayload {
   sub: number;
   sid: string;
-}
-
-interface AuthResponse {
-  user: Omit<User, 'password'>;
-  accessToken: string;
-  refreshToken: string;
 }
 
 @Injectable()
@@ -86,14 +81,13 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token reuse detected');
     }
 
-    // rotation
     await this.refreshSessionsService.revoke(session.id);
 
     return this.issueTokens(session.user, req);
   }
 
   // =========================
-  // LOGOUT (ALL SESSIONS)
+  // LOGOUT
   // =========================
   async logout(refreshToken: string) {
     let payload: { sub: number };
@@ -135,15 +129,17 @@ export class AuthService {
     });
 
     return {
-      user: this.sanitizeUser(user),
+      user: this.toAuthUser(user),
       accessToken,
       refreshToken,
     };
   }
 
-  private sanitizeUser(user: User): Omit<User, 'password'> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password, ...rest } = user;
-    return rest;
+  private toAuthUser(user: User): AuthUser {
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+    };
   }
 }

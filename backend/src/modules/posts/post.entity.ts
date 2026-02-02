@@ -4,6 +4,7 @@ import {
   Column,
   ManyToOne,
   CreateDateColumn,
+  UpdateDateColumn,
   JoinTable,
   ManyToMany,
 } from 'typeorm';
@@ -18,6 +19,7 @@ export class Post {
   id: number;
 
   @ManyToOne(() => User, (user) => user.posts, {
+    eager: true,
     onDelete: 'CASCADE',
   })
   author: User;
@@ -28,6 +30,9 @@ export class Post {
   @CreateDateColumn()
   createdAt: Date;
 
+  @UpdateDateColumn()
+  updatedAt: Date;
+
   @ManyToOne(() => Topic, { eager: true, nullable: false })
   topic: Topic;
 
@@ -35,6 +40,6 @@ export class Post {
   mood: Mood;
 
   @ManyToMany(() => Tag, { eager: true })
-  @JoinTable()
+  @JoinTable({ name: 'post_tags' })
   tags: Tag[];
 }

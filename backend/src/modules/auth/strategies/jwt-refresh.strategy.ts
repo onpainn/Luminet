@@ -1,8 +1,14 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import { UsersService } from 'src/modules/users/users.service';
+import { Strategy } from 'passport-jwt';
+import { Request } from 'express';
+import { RefreshSessionsService } from '../../refresh-sessions/refresh-sessions.service';
+
+interface RefreshPayload {
+  sub: number;
+  sid: string;
+}
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(
@@ -11,21 +17,26 @@ export class JwtRefreshStrategy extends PassportStrategy(
 ) {
   constructor(
     configService: ConfigService,
-    private readonly usersService: UsersService,
+    private readonly refreshSessionsService: RefreshSessionsService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'),
+      jwtFromRequest: (req: Request) => {
+        return req.cookies?.refreshToken ?? null;
+      },
       secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
     });
   }
 
-  async validate(payload: { sub: number }) {
-    const user = await this.usersService.findById(payload.sub);
+  async validate(payload: RefreshPayload) {
+    const session = await this.refreshSessionsService.findById(payload.sid);
 
-    if (!user || !user.isActive) {
+    if (!session || session.user.id !== payload.sub) {
       throw new UnauthorizedException();
     }
 
-    return user;
+    return {
+      userId: payload.sub,
+      sessionId: payload.sid,
+    };
   }
 }

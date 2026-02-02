@@ -5,6 +5,7 @@ import {
   Req,
   Res,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
@@ -14,6 +15,7 @@ import {
   REFRESH_COOKIE,
   REFRESH_COOKIE_OPTIONS,
 } from 'src/common/constants/auth-cookies';
+import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -35,7 +37,6 @@ export class AuthController {
     );
 
     res.cookie(REFRESH_COOKIE, refreshToken, REFRESH_COOKIE_OPTIONS);
-
     return data;
   }
 
@@ -58,15 +59,16 @@ export class AuthController {
   // =========================
   // REFRESH
   // =========================
+  @UseGuards(JwtRefreshGuard)
   @Post('refresh')
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+    const refreshToken = req.cookies?.refreshToken;
 
     if (!refreshToken) {
-      throw new UnauthorizedException();
+      throw new UnauthorizedException('No refresh token');
     }
 
     const { refreshToken: newRefreshToken, ...data } =
@@ -82,7 +84,7 @@ export class AuthController {
   // =========================
   @Post('logout')
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies?.[REFRESH_COOKIE] as string | undefined;
+    const refreshToken = req.cookies?.refreshToken;
 
     if (refreshToken) {
       await this.authService.logout(refreshToken);
