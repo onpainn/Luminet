@@ -1,7 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
-
 import { RefreshSession } from './refresh-session.entity';
 import { User } from '../users/user.entity';
 
@@ -15,64 +14,93 @@ export class RefreshSessionsService {
   // =========================
   // CREATE
   // =========================
-  async create(params: {
+  async create(data: {
     user: User;
     refreshTokenHash: string;
-    userAgent: string;
     ip: string;
+    userAgent: string;
     expiresAt: Date;
   }): Promise<RefreshSession> {
     const session = this.repo.create({
-      user: params.user,
-      refreshTokenHash: params.refreshTokenHash,
-      userAgent: params.userAgent,
-      ip: params.ip,
-      expiresAt: params.expiresAt,
+      ...data,
+      revokedAt: null,
     });
 
     return this.repo.save(session);
   }
 
   // =========================
-  // READ
+  // FIND BY ID
   // =========================
   async findById(id: string): Promise<RefreshSession | null> {
     return this.repo.findOne({
-      where: {
-        id,
-        revokedAt: IsNull(),
-      },
+      where: { id },
       relations: ['user'],
     });
   }
 
-  async findActiveByUser(userId: number): Promise<RefreshSession[]> {
+  // =========================
+  // FIND ALL BY USER
+  // =========================
+  async findByUser(userId: number): Promise<RefreshSession[]> {
     return this.repo.find({
       where: {
         user: { id: userId },
-        revokedAt: IsNull(),
       },
-      relations: ['user'],
+      order: {
+        createdAt: 'DESC',
+      },
     });
   }
 
   // =========================
-  // REVOKE
+  // UPDATE HASH
   // =========================
-  async revoke(session: RefreshSession | string): Promise<void> {
-    const id = typeof session === 'string' ? session : session.id;
+  async updateHash(id: string, refreshTokenHash: string): Promise<void> {
+    await this.repo.update(id, {
+      refreshTokenHash,
+    });
+  }
 
+  // =========================
+  // REVOKE ONE
+  // =========================
+  async revoke(id: string): Promise<void> {
     await this.repo.update(id, {
       revokedAt: new Date(),
     });
   }
 
+  // =========================
+  // REMOVE ONE (by owner)
+  // =========================
+  async remove(userId: number, sessionId: string): Promise<void> {
+    const session = await this.repo.findOne({
+      where: {
+        id: sessionId,
+        user: { id: userId },
+      },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+
+    await this.repo.remove(session);
+  }
+
+  // =========================
+  // REVOKE ALL FOR USER
+  // =========================
   async revokeAll(userId: number): Promise<void> {
-    await this.repo
-      .createQueryBuilder()
-      .update(RefreshSession)
-      .set({ revokedAt: new Date() })
-      .where('userId = :userId', { userId })
-      .execute();
+    await this.repo.update(
+      {
+        user: { id: userId },
+        revokedAt: IsNull(),
+      },
+      {
+        revokedAt: new Date(),
+      },
+    );
   }
 }

@@ -1,16 +1,9 @@
-import {
-  Body,
-  Controller,
-  Post,
-  Req,
-  Res,
-  UnauthorizedException,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
 import {
   REFRESH_COOKIE,
   REFRESH_COOKIE_OPTIONS,
@@ -26,13 +19,13 @@ export class AuthController {
   // =========================
   @Post('login')
   async login(
-    @Body() body: { email: string; password: string },
+    @Body() dto: LoginDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const { refreshToken, ...data } = await this.authService.login(
-      body.email,
-      body.password,
+      dto.email,
+      dto.password,
       req,
     );
 
@@ -52,7 +45,6 @@ export class AuthController {
     const { refreshToken, ...data } = await this.authService.register(dto, req);
 
     res.cookie(REFRESH_COOKIE, refreshToken, REFRESH_COOKIE_OPTIONS);
-
     return data;
   }
 
@@ -62,36 +54,30 @@ export class AuthController {
   @UseGuards(JwtRefreshGuard)
   @Post('refresh')
   async refresh(
-    @Req() req: Request,
+    @Req() req: Request & { user: { userId: number; sessionId: string } },
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = req.cookies?.refreshToken;
+    const { refreshToken, ...data } = await this.authService.refresh(
+      req.user,
+      req,
+    );
 
-    if (!refreshToken) {
-      throw new UnauthorizedException('No refresh token');
-    }
-
-    const { refreshToken: newRefreshToken, ...data } =
-      await this.authService.refresh(refreshToken, req);
-
-    res.cookie(REFRESH_COOKIE, newRefreshToken, REFRESH_COOKIE_OPTIONS);
-
+    res.cookie(REFRESH_COOKIE, refreshToken, REFRESH_COOKIE_OPTIONS);
     return data;
   }
-
   // =========================
   // LOGOUT
   // =========================
   @Post('logout')
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies?.refreshToken;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const refreshToken = req.cookies?.[REFRESH_COOKIE];
 
     if (refreshToken) {
       await this.authService.logout(refreshToken);
     }
 
     res.clearCookie(REFRESH_COOKIE, REFRESH_COOKIE_OPTIONS);
-
     return { success: true };
   }
 }

@@ -3,7 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-jwt';
 import { Request } from 'express';
+
 import { RefreshSessionsService } from '../../refresh-sessions/refresh-sessions.service';
+import { REFRESH_COOKIE } from 'src/common/constants/auth-cookies';
 
 interface RefreshPayload {
   sub: number;
@@ -21,9 +23,10 @@ export class JwtRefreshStrategy extends PassportStrategy(
   ) {
     super({
       jwtFromRequest: (req: Request) => {
-        return req.cookies?.refreshToken ?? null;
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+        return req.cookies?.[REFRESH_COOKIE] ?? null;
       },
-      secretOrKey: configService.getOrThrow<string>('JWT_SECRET'),
+      secretOrKey: configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
     });
   }
 

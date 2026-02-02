@@ -11,9 +11,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  // ✅ ВАЖНО
+  // cookies
   app.use(cookieParser());
 
+  // validation
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -22,6 +23,7 @@ async function bootstrap() {
     }),
   );
 
+  // serialization
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   const port = configService.getOrThrow<number>('APP_PORT');

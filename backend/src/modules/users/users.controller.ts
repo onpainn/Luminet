@@ -24,6 +24,7 @@ export class UsersController {
   // =========================
   // CURRENT USER
   // =========================
+  @UseGuards(JwtAuthGuard)
   @Get('me')
   async getMe(@CurrentUser() user: AuthUser) {
     const fullUser = await this.usersService.findById(user.id);
