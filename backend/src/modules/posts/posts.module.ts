@@ -8,10 +8,11 @@ import { Mood } from '../moods/mood.entity';
 import { Topic } from '../topics/topic.entity';
 import { Tag } from '../tags/tag.entity';
 import { PostLike } from '../likes/post-like.entity';
+import { Comment } from '../comments/comment.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Post, Mood, Topic, Tag, PostLike]),
+    TypeOrmModule.forFeature([Post, Mood, Topic, Tag, PostLike, Comment]),
     TagsModule,
   ],
   controllers: [PostsController],
