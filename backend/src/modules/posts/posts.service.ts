@@ -10,6 +10,7 @@ import { Tag } from '../tags/tag.entity';
 import { toPostPublicDto } from './post.mapper';
 import { PostPublicDto } from './dto/post-public.dto';
 import { PostLike } from '../likes/post-like.entity';
+import { Comment } from '../comments/comment.entity';
 
 @Injectable()
 export class PostsService {
@@ -28,6 +29,9 @@ export class PostsService {
 
     @InjectRepository(PostLike)
     private readonly postLikesRepository: Repository<PostLike>,
+
+    @InjectRepository(Comment)
+    private readonly commentsRepository: Repository<Comment>,
   ) {}
 
   // ---------------- CREATE POST ----------------
@@ -69,8 +73,12 @@ export class PostsService {
 
     const savedPost = await this.postsRepository.save(post);
 
-    // при создании лайков нет
-    return toPostPublicDto(savedPost, 0, false);
+    return toPostPublicDto(
+      savedPost,
+      0, // likesCount
+      false, // likedByMe
+      0, // commentsCount
+    );
   }
 
   // ---------------- FEED ----------------
@@ -123,6 +131,20 @@ export class PostsService {
       myLikesRaw.map((row) => Number(row.postId)),
     );
 
+    // ---- comments count ----
+    const commentsCountRaw = await this.commentsRepository
+      .createQueryBuilder('comment')
+      .select('comment.postId', 'postId')
+      .addSelect('COUNT(*)', 'count')
+      .where('comment.postId IN (:...postIds)', { postIds })
+      .groupBy('comment.postId')
+      .getRawMany();
+
+    const commentsCountMap = new Map<number, number>();
+    commentsCountRaw.forEach((row) =>
+      commentsCountMap.set(Number(row.postId), Number(row.count)),
+    );
+
     return {
       total,
       items: posts.map((post) =>
@@ -130,6 +152,7 @@ export class PostsService {
           post,
           likesCountMap.get(post.id) ?? 0,
           likedPostIds.has(post.id),
+          commentsCountMap.get(post.id) ?? 0,
         ),
       ),
     };

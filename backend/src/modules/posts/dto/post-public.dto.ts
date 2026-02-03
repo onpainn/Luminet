@@ -25,4 +25,6 @@ export class PostPublicDto {
 
   likesCount: number;
   likedByMe: boolean;
+
+  commentsCount: number;
 }

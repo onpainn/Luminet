@@ -3,8 +3,9 @@ import { PostPublicDto } from './dto/post-public.dto';
 
 export function toPostPublicDto(
   post: Post,
-  likesCount = 0,
-  likedByMe = false,
+  likesCount: number,
+  likedByMe: boolean,
+  commentsCount: number,
 ): PostPublicDto {
   return {
     id: post.id,
@@ -28,5 +29,6 @@ export function toPostPublicDto(
     })),
     likesCount,
     likedByMe,
+    commentsCount,
   };
 }
