@@ -7,6 +7,9 @@ import { User } from '../users/user.entity';
 import { Mood } from '../moods/mood.entity';
 import { Topic } from '../topics/topic.entity';
 import { Tag } from '../tags/tag.entity';
+import { toPostPublicDto } from './post.mapper';
+import { PostPublicDto } from './dto/post-public.dto';
+import { PostLike } from '../likes/post-like.entity';
 
 @Injectable()
 export class PostsService {
@@ -22,24 +25,22 @@ export class PostsService {
 
     @InjectRepository(Tag)
     private readonly tagsRepository: Repository<Tag>,
+
+    @InjectRepository(PostLike)
+    private readonly postLikesRepository: Repository<PostLike>,
   ) {}
 
-  async create(dto: CreatePostDto, user: User): Promise<Post> {
+  // ---------------- CREATE POST ----------------
+  async create(dto: CreatePostDto, user: User): Promise<PostPublicDto> {
     const mood = await this.moodsRepository.findOne({
       where: { id: dto.moodId },
     });
-
-    if (!mood) {
-      throw new NotFoundException('Mood not found');
-    }
+    if (!mood) throw new NotFoundException('Mood not found');
 
     const topic = await this.topicsRepository.findOne({
       where: { id: dto.topicId },
     });
-
-    if (!topic) {
-      throw new NotFoundException('Topic not found');
-    }
+    if (!topic) throw new NotFoundException('Topic not found');
 
     let tags: Tag[] = [];
 
@@ -48,18 +49,13 @@ export class PostsService {
         where: { name: In(dto.tags) },
       });
 
-      const existingNames = existingTags.map((tag) => tag.name);
+      const existingNames = existingTags.map((t) => t.name);
 
       const newTags = dto.tags
         .filter((name) => !existingNames.includes(name))
-        .map((name) =>
-          this.tagsRepository.create({
-            name,
-          }),
-        );
+        .map((name) => this.tagsRepository.create({ name }));
 
       const savedNewTags = await this.tagsRepository.save(newTags);
-
       tags = [...existingTags, ...savedNewTags];
     }
 
@@ -71,6 +67,65 @@ export class PostsService {
       tags,
     });
 
-    return this.postsRepository.save(post);
+    const savedPost = await this.postsRepository.save(post);
+
+    // при создании лайков нет
+    return toPostPublicDto(savedPost, 0, false);
+  }
+
+  // ---------------- FEED ----------------
+  async findFeed(
+    user: User,
+    limit = 20,
+    offset = 0,
+  ): Promise<{ total: number; items: PostPublicDto[] }> {
+    const [posts, total] = await this.postsRepository.findAndCount({
+      order: { createdAt: 'DESC' },
+      take: limit,
+      skip: offset,
+    });
+
+    if (posts.length === 0) {
+      return { total: 0, items: [] };
+    }
+
+    const postIds = posts.map((p) => p.id);
+
+    // ---- likes count ----
+    const likesCountRaw = await this.postLikesRepository
+      .createQueryBuilder('like')
+      .select('like.postId', 'postId')
+      .addSelect('COUNT(*)', 'count')
+      .where('like.postId IN (:...postIds)', { postIds })
+      .groupBy('like.postId')
+      .getRawMany();
+
+    const likesCountMap = new Map<number, number>();
+    likesCountRaw.forEach((row) =>
+      likesCountMap.set(Number(row.postId), Number(row.count)),
+    );
+
+    // ---- liked by me ----
+    const myLikesRaw = await this.postLikesRepository
+      .createQueryBuilder('like')
+      .select('like.postId', 'postId')
+      .where('like.userId = :userId', { userId: user.id })
+      .andWhere('like.postId IN (:...postIds)', { postIds })
+      .getRawMany();
+
+    const likedPostIds = new Set<number>(
+      myLikesRaw.map((row) => Number(row.postId)),
+    );
+
+    return {
+      total,
+      items: posts.map((post) =>
+        toPostPublicDto(
+          post,
+          likesCountMap.get(post.id) ?? 0,
+          likedPostIds.has(post.id),
+        ),
+      ),
+    };
   }
 }

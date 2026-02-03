@@ -22,4 +22,7 @@ export class PostPublicDto {
     id: number;
     name: string;
   }[];
+
+  likesCount: number;
+  likedByMe: boolean;
 }

@@ -13,6 +13,7 @@ import { MoodsModule } from './modules/moods/moods.module';
 import { CleanupModule } from './cleanup/cleanup.module';
 import { AuthTokensModule } from './modules/auth-tokens/auth-tokens.module';
 import { EmailThrottlerGuard } from './common/guards/email-throttler.guard';
+import { PostLikesModule } from './modules/likes/post-likes.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { EmailThrottlerGuard } from './common/guards/email-throttler.guard';
     TagsModule,
     MoodsModule,
     CleanupModule,
+    PostLikesModule,
   ],
   providers: [
     {

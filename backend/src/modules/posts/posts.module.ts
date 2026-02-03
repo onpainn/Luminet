@@ -7,9 +7,13 @@ import { TagsModule } from '../tags/tags.module';
 import { Mood } from '../moods/mood.entity';
 import { Topic } from '../topics/topic.entity';
 import { Tag } from '../tags/tag.entity';
+import { PostLike } from '../likes/post-like.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Post, Mood, Topic, Tag]), TagsModule],
+  imports: [
+    TypeOrmModule.forFeature([Post, Mood, Topic, Tag, PostLike]),
+    TagsModule,
+  ],
   controllers: [PostsController],
   providers: [PostsService],
 })

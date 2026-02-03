@@ -3,43 +3,43 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
-  CreateDateColumn,
-  UpdateDateColumn,
-  JoinTable,
   ManyToMany,
+  OneToMany,
+  JoinTable,
+  CreateDateColumn,
 } from 'typeorm';
 import { User } from '../users/user.entity';
-import { Tag } from '../tags/tag.entity';
-import { Topic } from '../topics/topic.entity';
 import { Mood } from '../moods/mood.entity';
+import { Topic } from '../topics/topic.entity';
+import { Tag } from '../tags/tag.entity';
+import { PostLike } from '../likes/post-like.entity';
 
 @Entity('posts')
 export class Post {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User, (user) => user.posts, {
-    eager: true,
-    onDelete: 'CASCADE',
-  })
+  @Column('text')
+  content: string;
+
+  @ManyToOne(() => User, (user) => user.posts, { eager: true })
   author: User;
 
-  @Column({ type: 'text' })
-  content: string;
+  @ManyToOne(() => Mood, { eager: true })
+  mood: Mood;
+
+  @ManyToOne(() => Topic, { eager: true })
+  topic: Topic;
+
+  @ManyToMany(() => Tag, { eager: true })
+  @JoinTable({
+    name: 'post_tags',
+  })
+  tags: Tag[];
+
+  @OneToMany(() => PostLike, (like) => like.post)
+  likes: PostLike[];
 
   @CreateDateColumn()
   createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
-
-  @ManyToOne(() => Topic, { eager: true, nullable: false })
-  topic: Topic;
-
-  @ManyToOne(() => Mood, { eager: true, nullable: false })
-  mood: Mood;
-
-  @ManyToMany(() => Tag, { eager: true })
-  @JoinTable({ name: 'post_tags' })
-  tags: Tag[];
 }
