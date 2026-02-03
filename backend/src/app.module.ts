@@ -14,6 +14,7 @@ import { CleanupModule } from './cleanup/cleanup.module';
 import { AuthTokensModule } from './modules/auth-tokens/auth-tokens.module';
 import { EmailThrottlerGuard } from './common/guards/email-throttler.guard';
 import { PostLikesModule } from './modules/likes/post-likes.module';
+import { CommentsModule } from './modules/comments/comments.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { PostLikesModule } from './modules/likes/post-likes.module';
     MoodsModule,
     CleanupModule,
     PostLikesModule,
+    CommentsModule,
   ],
   providers: [
     {
