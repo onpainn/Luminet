@@ -80,6 +80,12 @@ export class PostsService {
     offset = 0,
   ): Promise<{ total: number; items: PostPublicDto[] }> {
     const [posts, total] = await this.postsRepository.findAndCount({
+      relations: {
+        author: true,
+        mood: true,
+        topic: true,
+        tags: true,
+      },
       order: { createdAt: 'DESC' },
       take: limit,
       skip: offset,
