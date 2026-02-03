@@ -49,4 +49,10 @@ export class User {
 
   @Column({ type: 'timestamp', nullable: true })
   emailVerifiedAt: Date | null;
+
+  @Column({ type: 'text', nullable: true })
+  bio?: string;
+
+  @Column({ nullable: true })
+  avatarUrl?: string;
 }

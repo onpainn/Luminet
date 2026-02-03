@@ -11,7 +11,7 @@ import { Index } from 'typeorm';
 
 @Entity('refresh_sessions')
 @Index(['user'])
-@Index(['revokedAt'])
+@Index(['user', 'revokedAt'])
 @Index(['expiresAt'])
 export class RefreshSession {
   @PrimaryGeneratedColumn('uuid')
@@ -26,11 +26,11 @@ export class RefreshSession {
   @Column()
   refreshTokenHash: string;
 
-  @Column()
-  userAgent: string;
+  @Column({ type: 'varchar', length: 45, nullable: true })
+  ip: string | null;
 
-  @Column()
-  ip: string;
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  userAgent: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

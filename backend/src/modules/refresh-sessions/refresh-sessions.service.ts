@@ -4,6 +4,7 @@ import { Repository, IsNull } from 'typeorm';
 import { RefreshSession } from './refresh-session.entity';
 import { User } from '../users/user.entity';
 import { LessThan } from 'typeorm';
+import { RefreshSessionDto } from './dto/refresh-session.dto';
 
 @Injectable()
 export class RefreshSessionsService {
@@ -43,10 +44,14 @@ export class RefreshSessionsService {
   // =========================
   // FIND ALL BY USER
   // =========================
-  async findByUser(userId: number, currentSessionId?: string) {
+  async findByUser(
+    userId: number,
+    currentSessionId?: string,
+  ): Promise<RefreshSessionDto[]> {
     const sessions = await this.repo.find({
       where: {
         user: { id: userId },
+        revokedAt: IsNull(),
       },
       order: {
         createdAt: 'DESC',
@@ -55,8 +60,8 @@ export class RefreshSessionsService {
 
     return sessions.map((session) => ({
       id: session.id,
-      ip: session.ip,
-      userAgent: session.userAgent,
+      ip: session.ip ?? 'unknown',
+      userAgent: session.userAgent ?? 'unknown',
       createdAt: session.createdAt,
       revokedAt: session.revokedAt,
       isCurrent: session.id === currentSessionId,
@@ -84,19 +89,21 @@ export class RefreshSessionsService {
   // =========================
   // REMOVE ONE (by owner)
   // =========================
-  async remove(userId: number, sessionId: string): Promise<void> {
-    const session = await this.repo.findOne({
-      where: {
+  async revokeByOwner(userId: number, sessionId: string): Promise<void> {
+    const result = await this.repo.update(
+      {
         id: sessionId,
         user: { id: userId },
+        revokedAt: IsNull(),
       },
-    });
+      {
+        revokedAt: new Date(),
+      },
+    );
 
-    if (!session) {
+    if (!result.affected) {
       throw new NotFoundException('Session not found');
     }
-
-    await this.repo.remove(session);
   }
 
   // =========================
@@ -122,5 +129,18 @@ export class RefreshSessionsService {
     });
 
     return result.affected ?? 0;
+  }
+  async revokeAllExcept(
+    userId: number,
+    currentSessionId: string,
+  ): Promise<void> {
+    await this.repo
+      .createQueryBuilder()
+      .update()
+      .set({ revokedAt: new Date() })
+      .where('user_id = :userId', { userId })
+      .andWhere('id != :currentSessionId', { currentSessionId })
+      .andWhere('revokedAt IS NULL')
+      .execute();
   }
 }

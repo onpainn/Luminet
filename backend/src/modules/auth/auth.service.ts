@@ -162,6 +162,8 @@ export class AuthService {
       id: user.id,
       email: user.email,
       username: user.username,
+      bio: user.bio ?? null,
+      avatarUrl: user.avatarUrl ?? null,
     };
   }
 }

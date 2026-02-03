@@ -1,8 +1,10 @@
-export interface AuthUser {
+export type AuthUser = {
   id: number;
   email: string;
   username: string;
-}
+  bio?: string | null;
+  avatarUrl?: string | null;
+};
 
 export interface AuthResponse {
   user: AuthUser;

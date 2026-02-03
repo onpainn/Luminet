@@ -1,4 +1,15 @@
-import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import { AuthService } from './auth.service';
@@ -19,6 +30,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { Throttle } from '@nestjs/throttler';
 import { EmailThrottlerGuard } from 'src/common/guards/email-throttler.guard';
+import { RefreshSessionsService } from '../refresh-sessions/refresh-sessions.service';
 
 @Controller('auth')
 export class AuthController {
@@ -26,6 +38,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly passwordResetService: PasswordResetService,
     private readonly emailVerificationService: EmailVerificationService,
+    private readonly refreshSessionsService: RefreshSessionsService,
   ) {}
 
   // =========================
@@ -134,5 +147,54 @@ export class AuthController {
   async verifyEmail(@Body() dto: VerifyEmailDto) {
     await this.emailVerificationService.verify(dto.token);
     return { ok: true };
+  }
+  // =========================
+  // DEVICES / SESSIONS
+  // =========================
+  @UseGuards(JwtRefreshGuard)
+  @Get('sessions')
+  async getSessions(
+    @Req()
+    req: Request & {
+      user: { userId: number; sessionId: string };
+    },
+  ) {
+    return this.refreshSessionsService.findByUser(
+      req.user.userId,
+      req.user.sessionId,
+    );
+  }
+  @UseGuards(JwtRefreshGuard)
+  @Delete('sessions/:id')
+  async removeSession(
+    @Param('id') sessionId: string,
+    @Req()
+    req: Request & {
+      user: { userId: number; sessionId: string };
+    },
+  ) {
+    // нельзя удалить текущую сессию этим endpoint'ом
+    if (sessionId === req.user.sessionId) {
+      throw new BadRequestException('Cannot remove current session');
+    }
+
+    await this.refreshSessionsService.revokeByOwner(req.user.userId, sessionId);
+
+    return { success: true };
+  }
+  @UseGuards(JwtRefreshGuard)
+  @Delete('sessions')
+  async logoutAllExceptCurrent(
+    @Req()
+    req: Request & {
+      user: { userId: number; sessionId: string };
+    },
+  ) {
+    await this.refreshSessionsService.revokeAllExcept(
+      req.user.userId,
+      req.user.sessionId,
+    );
+
+    return { success: true };
   }
 }
