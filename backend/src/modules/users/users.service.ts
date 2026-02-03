@@ -183,4 +183,30 @@ export class UsersService {
 
     return user;
   }
+  // =========================
+  // UPDATE PASSWORD (SYSTEM)
+  // используется для password reset
+  // =========================
+  async updatePassword(userId: number, password: string): Promise<void> {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(password, this.SALT_ROUNDS);
+
+    user.password = passwordHash;
+    await this.usersRepository.save(user);
+  }
+  // =========================
+  // EMAIL VERIFICATION
+  // =========================
+  async markEmailVerified(userId: number): Promise<void> {
+    await this.usersRepository.update(userId, {
+      emailVerifiedAt: new Date(),
+    });
+  }
 }

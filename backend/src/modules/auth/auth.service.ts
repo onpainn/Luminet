@@ -50,28 +50,53 @@ export class AuthService {
   }
 
   // =========================
-  // REFRESH (КЛЮЧЕВОЕ МЕСТО)
+  // REFRESH
   // =========================
   async refresh(
     user: { userId: number; sessionId: string },
+    refreshToken: string | undefined,
     req: Request,
   ): Promise<AuthResponse> {
+    if (!refreshToken) {
+      throw new UnauthorizedException();
+    }
+
     const { userId, sessionId } = user;
 
     const session = await this.refreshSessionsService.findById(sessionId);
 
-    if (
-      !session ||
-      session.revokedAt ||
-      session.user.id !== userId ||
-      session.expiresAt < new Date()
-    ) {
+    // базовая валидация
+    if (!session || session.user.id !== userId) {
       throw new UnauthorizedException();
     }
 
-    // 🔁 ротация
+    // reuse detection (сессия уже отозвана)
+    if (session.revokedAt) {
+      await this.refreshSessionsService.revokeAll(userId);
+      throw new UnauthorizedException('Refresh token reuse detected');
+    }
+
+    // срок жизни
+    if (session.expiresAt < new Date()) {
+      throw new UnauthorizedException();
+    }
+
+    // сравнение хэша
+    const isValid = await bcrypt.compare(
+      refreshToken,
+      session.refreshTokenHash,
+    );
+
+    if (!isValid) {
+      // ❗ украден / подменён
+      await this.refreshSessionsService.revokeAll(userId);
+      throw new UnauthorizedException('Refresh token reuse detected');
+    }
+
+    // ротация — отзываем текущую сессию
     await this.refreshSessionsService.revoke(sessionId);
 
+    // выдаём новую пару
     return this.issueTokens(session.user, req);
   }
 

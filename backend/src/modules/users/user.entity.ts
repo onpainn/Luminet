@@ -46,4 +46,7 @@ export class User {
 
   @OneToMany(() => RefreshSession, (session) => session.user)
   refreshSessions: RefreshSession[];
+
+  @Column({ type: 'timestamp', nullable: true })
+  emailVerifiedAt: Date | null;
 }

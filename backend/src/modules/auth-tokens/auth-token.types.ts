@@ -1,0 +1,4 @@
+export enum AuthTokenType {
+  PASSWORD_RESET = 'PASSWORD_RESET',
+  EMAIL_VERIFY = 'EMAIL_VERIFY',
+}

@@ -1,18 +1,45 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { TopicsModule } from './modules/topics/topics.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { MoodsModule } from './modules/moods/moods.module';
+import { CleanupModule } from './cleanup/cleanup.module';
+import { AuthTokensModule } from './modules/auth-tokens/auth-tokens.module';
+import { EmailThrottlerGuard } from './common/guards/email-throttler.guard';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          name: 'default',
+          ttl: 60,
+          limit: 10,
+        },
+        {
+          name: 'auth',
+          ttl: 60,
+          limit: 5,
+        },
+        {
+          name: 'passwordReset',
+          ttl: 300,
+          limit: 3,
+        },
+      ],
+    }),
+
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -26,12 +53,24 @@ import { MoodsModule } from './modules/moods/moods.module';
         synchronize: true,
       }),
     }),
+
+    ScheduleModule.forRoot(),
+
     UsersModule,
     AuthModule,
+    AuthTokensModule,
     PostsModule,
     TopicsModule,
     TagsModule,
     MoodsModule,
+    CleanupModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      useClass: EmailThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { RefreshSession } from './refresh-session.entity';
 import { User } from '../users/user.entity';
+import { LessThan } from 'typeorm';
 
 @Injectable()
 export class RefreshSessionsService {
@@ -111,5 +112,15 @@ export class RefreshSessionsService {
         revokedAt: new Date(),
       },
     );
+  }
+  // =========================
+  // CLEANUP EXPIRED SESSIONS
+  // =========================
+  async deleteExpiredSessions(): Promise<number> {
+    const result = await this.repo.delete({
+      expiresAt: LessThan(new Date()),
+    });
+
+    return result.affected ?? 0;
   }
 }

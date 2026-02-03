@@ -8,10 +8,14 @@ import { JwtStrategy } from './jwt.strategy';
 import { UsersModule } from '../users/users.module';
 import { RefreshSessionsModule } from '../refresh-sessions/refresh-sessions.module';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
+import { AuthTokensModule } from '../auth-tokens/auth-tokens.module';
+import { PasswordResetService } from './password-reset.service';
+import { EmailVerificationService } from './email-verification.service';
 
 @Module({
   imports: [
     UsersModule,
+    AuthTokensModule,
     PassportModule,
     RefreshSessionsModule,
     JwtModule.registerAsync({
@@ -23,7 +27,13 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
       }),
     }),
   ],
-  providers: [AuthService, JwtStrategy, JwtRefreshStrategy],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    JwtRefreshStrategy,
+    PasswordResetService,
+    EmailVerificationService,
+  ],
   controllers: [AuthController],
 })
 export class AuthModule {}

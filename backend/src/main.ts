@@ -9,6 +9,12 @@ import { Reflector } from '@nestjs/core';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  const adapter = app.getHttpAdapter();
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const instance = adapter.getInstance();
+  instance.set('trust proxy', true);
+
   const configService = app.get(ConfigService);
 
   // cookies
