@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Comment } from './comment.entity';
@@ -47,5 +51,21 @@ export class CommentsService {
       total,
       items: comments.map(toCommentPublicDto),
     };
+  }
+  async delete(commentId: number, userId: number) {
+    const comment = await this.commentsRepository.findOne({
+      where: { id: commentId },
+      relations: ['author'],
+    });
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found');
+    }
+
+    if (comment.author.id !== userId) {
+      throw new ForbiddenException('You cannot delete this comment');
+    }
+
+    await this.commentsRepository.delete(commentId);
   }
 }

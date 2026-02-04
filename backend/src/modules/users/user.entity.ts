@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 import { Post } from '../posts/post.entity';
 import { RefreshSession } from '../refresh-sessions/refresh-session.entity';
+import { Comment } from '../comments/comment.entity';
 
 @Entity('users')
 @Index(['email'])
@@ -55,4 +56,7 @@ export class User {
 
   @Column({ nullable: true })
   avatarUrl?: string;
+
+  @OneToMany(() => Comment, (comment) => comment.author)
+  comments: Comment[];
 }

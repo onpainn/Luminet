@@ -13,6 +13,7 @@ import { Mood } from '../moods/mood.entity';
 import { Topic } from '../topics/topic.entity';
 import { Tag } from '../tags/tag.entity';
 import { PostLike } from '../likes/post-like.entity';
+import { Comment } from '../comments/comment.entity';
 
 @Entity('posts')
 export class Post {
@@ -42,4 +43,7 @@ export class Post {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @OneToMany(() => Comment, (comment) => comment.post)
+  comments: Comment[];
 }

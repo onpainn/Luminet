@@ -6,6 +6,8 @@ import {
   Body,
   Query,
   UseGuards,
+  Delete,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -34,5 +36,14 @@ export class CommentsController {
     @Query('offset') offset = 0,
   ) {
     return this.commentsService.findByPost(+postId, +limit, +offset);
+  }
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  async deleteComment(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: User,
+  ) {
+    await this.commentsService.delete(id, user.id);
+    return { deleted: true };
   }
 }
