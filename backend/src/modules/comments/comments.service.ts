@@ -52,20 +52,24 @@ export class CommentsService {
       items: comments.map(toCommentPublicDto),
     };
   }
-  async delete(commentId: number, userId: number) {
+  async deleteComment(commentId: number, userId: number) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const comment = await this.commentsRepository.findOne({
       where: { id: commentId },
-      relations: ['author'],
+      relations: ['author', 'post', 'post.author'],
     });
 
     if (!comment) {
       throw new NotFoundException('Comment not found');
     }
 
-    if (comment.author.id !== userId) {
+    const isAuthor = comment.author.id === userId;
+    const isPostOwner = comment.post.author.id === userId;
+
+    if (!isAuthor && !isPostOwner) {
       throw new ForbiddenException('You cannot delete this comment');
     }
 
-    await this.commentsRepository.delete(commentId);
+    await this.commentsRepository.remove(comment);
   }
 }

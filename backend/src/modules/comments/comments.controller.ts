@@ -43,7 +43,7 @@ export class CommentsController {
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: User,
   ) {
-    await this.commentsService.delete(id, user.id);
+    await this.commentsService.deleteComment(id, user.id);
     return { deleted: true };
   }
 }
