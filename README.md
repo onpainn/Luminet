@@ -1,7 +1,7 @@
 Luminet 
 Next x Nest
 
-Sub UpdateShopFast_Commented()
+Sub UpdateShopFast()
 
 Application.ScreenUpdating = False
 Application.Calculation = xlCalculationManual
@@ -18,11 +18,9 @@ Set wsAcc = ThisWorkbook.Sheets("Аксессуары")
 Set wsMissing = ThisWorkbook.Sheets("Отсутствует")
 Set wsLog = ThisWorkbook.Sheets("Изменения")
 
-' словарь для старых статусов
 Dim dictOld As Object
 Set dictOld = CreateObject("Scripting.Dictionary")
 
-' словари для статистики
 Dim dictIn As Object
 Dim dictOut As Object
 
@@ -31,28 +29,22 @@ Set dictOut = CreateObject("Scripting.Dictionary")
 
 Dim i As Long
 
-' читаем старые статусы из листа Аксессуары
 For i = 2 To wsAcc.Cells(wsAcc.Rows.Count, 1).End(xlUp).Row
     dictOld(wsAcc.Cells(i, 1).Value) = wsAcc.Cells(i, 3).Value
 Next i
 
-' выбираем главный файл
 sourceFile = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx")
-
 If sourceFile = False Then Exit Sub
 
 Set wbSource = Workbooks.Open(sourceFile)
 Set wsSource = wbSource.Sheets(1)
 
-' находим последнюю строку
 Dim lastRow As Long
 lastRow = wsSource.Cells(wsSource.Rows.Count, "B").End(xlUp).Row
 
-' читаем таблицу в массив
 Dim data
 data = wsSource.Range("B2:G" & lastRow).Value
 
-' массивы результатов
 Dim acc()
 Dim miss()
 
@@ -124,15 +116,12 @@ Next i
 
 wbSource.Close False
 
-' очищаем листы
 wsAcc.Cells.Clear
 wsMissing.Cells.Clear
 
-' записываем результаты
 wsAcc.Range("A2").Resize(rAcc, 3).Value = acc
 wsMissing.Range("A2").Resize(rMiss, 3).Value = miss
 
-' статистика
 Dim statRow As Long
 Dim key
 Dim col As Long
