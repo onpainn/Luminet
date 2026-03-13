@@ -1,12 +1,28 @@
 Luminet 
 Next x Nest
 
-Set dictOld = CreateObject("Scripting.Dictionary")
-    Set dictIn = CreateObject("Scripting.Dictionary")
-    Set dictOut = CreateObject("Scripting.Dictionary")
-    
-    For i = 2 To wsAcc.Cells(wsAcc.Rows.Count, 1).End(xlUp).Row
-        If wsAcc.Cells(i, 1).Value <> "" Then
-            dictOld(wsAcc.Cells(i, 1).Value) = wsAcc.Cells(i, 3).Value
+If IsDate(updateDate) Then
+            If Int(updateDate) = Date Then
+                
+                ' --- Ушло ---
+                If dictOld.exists(id) Then
+                    oldStatus = LCase(dictOld(id))
+                    If oldStatus <> LCase(status) Then
+                        If dictOut.exists(oldStatus) Then
+                            dictOut(oldStatus) = dictOut(oldStatus) + 1
+                        Else
+                            dictOut.Add oldStatus, 1
+                        End If
+                    End If
+                End If
+                
+                ' --- Пришло ---
+                newStatus = LCase(status)
+                If dictIn.exists(newStatus) Then
+                    dictIn(newStatus) = dictIn(newStatus) + 1
+                Else
+                    dictIn.Add newStatus, 1
+                End If
+                
+            End If
         End If
-    Next i
