@@ -1,0 +1,208 @@
+Sub UpdateShopWithTodayChanges()
+
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+
+    Dim sourceFile As Variant, targetFile As Variant
+    Dim wbSource As Workbook, wbTarget As Workbook
+    Dim wsSource As Worksheet, wsAcc As Worksheet, wsMiss As Worksheet, wsLog As Worksheet
+    Dim dictOld As Object, dictIn As Object, dictOut As Object
+    Dim data
+    Dim mainArr(), missArr()
+    Dim rMain As Long, rMiss As Long
+    Dim i As Long, j As Long
+    
+    Dim id As String, name As String, status As String, category As String
+    Dim updateDate As Variant
+    Dim oldStatus As String, newStatus As String
+    
+    '=============================
+    ' ВЫБОР ФАЙЛОВ
+    '=============================
+    sourceFile = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx", , "Выберите файл базы товаров")
+    If sourceFile = False Then Exit Sub
+    targetFile = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx", , "Выберите файл аналитики")
+    If targetFile = False Then Exit Sub
+    
+    Set wbSource = Workbooks.Open(sourceFile)
+    Set wbTarget = Workbooks.Open(targetFile)
+    
+    '=============================
+    ' ЛИСТЫ
+    '=============================
+    Set wsSource = wbSource.Sheets(1)
+    Set wsAcc = wbTarget.Sheets("Аксессуары")
+    Set wsMiss = wbTarget.Sheets("Отсутствует")
+    Set wsLog = wbTarget.Sheets("Изменения")
+    
+    '=============================
+    ' СОХРАНЯЕМ СТАРЫЕ СТАТУСЫ
+    '=============================
+    Set dictOld = CreateObject("Scripting.Dictionary")
+    Set dictIn = CreateObject("Scripting.Dictionary")
+    Set dictOut = CreateObject("Scripting.Dictionary")
+    
+    For i = 2 To wsAcc.Cells(wsAcc.Rows.Count, 1).End(xlUp).Row
+        If wsAcc.Cells(i, 1).Value <> "" Then
+            dictOld(wsAcc.Cells(i, 1).Value) = wsAcc.Cells(i, 3).Value
+        End If
+    Next i
+    
+    '=============================
+    ' Чтение базы
+    '=============================
+    Dim lastRow As Long
+    lastRow = wsSource.Cells(wsSource.Rows.Count, "B").End(xlUp).Row
+    data = wsSource.Range("B2:AE" & lastRow).Value ' 30 колонок
+    
+    ReDim mainArr(1 To UBound(data), 1 To 14)
+    ReDim missArr(1 To UBound(data), 1 To 10)
+    
+    rMain = 0
+    rMiss = 0
+    
+    '=============================
+    ' ОБРАБОТКА ДАННЫХ
+    '=============================
+    For i = 1 To UBound(data)
+    
+        id = data(i, 4)
+        name = data(i, 5)
+        status = data(i, 9)
+        category = data(i, 12)
+        updateDate = data(i, 30)
+        
+        ' Листы Аксессуары и Отсутствует (за всё время)
+        If InStr(LCase(category), "аксессуар") > 0 Then
+            rMain = rMain + 1
+            For j = 1 To 14
+                mainArr(rMain, j) = data(i, j)
+            Next j
+            
+            If LCase(status) = "отсутствует" Then
+                rMiss = rMiss + 1
+                For j = 1 To 10
+                    missArr(rMiss, j) = data(i, j)
+                Next j
+            End If
+        End If
+        
+        '=============================
+        ' СТАТИСТИКА ИЗМЕНЕНИЙ ТОЛЬКО ЗА СЕГОДНЯ
+        '=============================
+        If IsDate(updateDate) Then
+            If Int(updateDate) = Date Then
+                
+                ' --- Ушло ---
+                If dictOld.exists(id) Then
+                    oldStatus = LCase(dictOld(id))
+                    If oldStatus <> LCase(status) Then
+                        If dictOut.exists(oldStatus) Then
+                            dictOut(oldStatus) = dictOut(oldStatus) + 1
+                        Else
+                            dictOut.Add oldStatus, 1
+                        End If
+                    End If
+                End If
+                
+                ' --- Пришло ---
+                newStatus = LCase(status)
+                If dictIn.exists(newStatus) Then
+                    dictIn(newStatus) = dictIn(newStatus) + 1
+                Else
+                    dictIn.Add newStatus, 1
+                End If
+                
+            End If
+        End If
+        
+    Next i
+    
+    '=============================
+    ' Очистка листов
+    '=============================
+    wsAcc.Cells.Clear
+    wsMiss.Cells.Clear
+    wsLog.Cells.Clear
+    
+    '=============================
+    ' Шапки
+    '=============================
+    wsAcc.Range("A1:N1").Value = Array("ID", "Название", "Статус", "Город", "Категория", _
+                                       "Кол6", "Кол7", "Кол8", "Кол9", "Кол10", _
+                                       "Кол11", "Кол12", "Кол13", "Кол14")
+    
+    wsMiss.Range("A1:J1").Value = Array("ID", "Название", "Статус", "Город", "Категория", _
+                                        "Кол6", "Кол7", "Кол8", "Кол9", "Кол10")
+    
+    wsLog.Range("A1:C1").Value = Array("Статус", "Пришло", "Ушло")
+    
+    '=============================
+    ' Запись данных
+    '=============================
+    If rMain > 0 Then wsAcc.Range("A2").Resize(rMain, 14).Value = mainArr
+    If rMiss > 0 Then wsMiss.Range("A2").Resize(rMiss, 10).Value = missArr
+    
+    '=============================
+    ' Запись статистики
+    '=============================
+    Dim statRow As Long, col As Long, key
+    statRow = 2
+    col = 2
+    
+    For Each key In dictIn.keys
+        wsLog.Cells(statRow, col) = key
+        col = col + 1
+    Next key
+    
+    wsLog.Cells(statRow + 1, 1) = "Пришло"
+    col = 2
+    For Each key In dictIn.keys
+        wsLog.Cells(statRow + 1, col) = dictIn(key)
+        col = col + 1
+    Next key
+    
+    wsLog.Cells(statRow + 2, 1) = "Ушло"
+    col = 2
+    For Each key In dictIn.keys
+        If dictOut.exists(key) Then
+            wsLog.Cells(statRow + 2, col) = dictOut(key)
+        Else
+            wsLog.Cells(statRow + 2, col) = 0
+        End If
+        col = col + 1
+    Next key
+    
+    '=============================
+    ' Оформление
+    '=============================
+    wsAcc.Rows(1).Font.Bold = True
+    wsAcc.Range("A1:N" & rMain + 1).HorizontalAlignment = xlCenter
+    wsAcc.Range("A1:N" & rMain + 1).Borders.LineStyle = xlContinuous
+    wsAcc.Columns("A:N").AutoFit
+    
+    wsMiss.Rows(1).Font.Bold = True
+    wsMiss.Range("A1:J" & rMiss + 1).HorizontalAlignment = xlCenter
+    wsMiss.Range("A1:J" & rMiss + 1).Borders.LineStyle = xlContinuous
+    wsMiss.Columns("A:J").AutoFit
+    
+    Dim lastStatRow As Long
+    lastStatRow = wsLog.Cells(wsLog.Rows.Count, 1).End(xlUp).Row
+    wsLog.Rows(1).Font.Bold = True
+    wsLog.Range("A1:C" & lastStatRow).HorizontalAlignment = xlCenter
+    wsLog.Range("A1:C" & lastStatRow).Borders.LineStyle = xlContinuous
+    wsLog.Columns("A:C").AutoFit
+    
+    '=============================
+    ' Сохранение и закрытие
+    '=============================
+    wbSource.Close False
+    wbTarget.Save
+    wbTarget.Close
+    
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    
+    MsgBox "Обновление завершено!"
+
+End Sub
