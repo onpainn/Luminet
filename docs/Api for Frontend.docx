@@ -1,32 +1,57 @@
-If dictOld.exists(id) Then
+Dim dictAll As Object
+Set dictAll = CreateObject("Scripting.Dictionary")
 
-    oldStatus = Trim(LCase(dictOld(id)))
-    newStatus = Trim(LCase(status))
+Dim key
 
-    If oldStatus <> newStatus Then
+' собираем все статусы
+For Each key In dictIn.keys
+    If Not dictAll.exists(key) Then dictAll.Add key, 1
+Next key
 
-        ' ===== запись изменения товара =====
-        logRow = logRow + 1
-        
-        wsLog.Cells(logRow, 1) = name
-        wsLog.Cells(logRow, 2) = id
-        wsLog.Cells(logRow, 3) = oldStatus
-        wsLog.Cells(logRow, 4) = newStatus
+For Each key In dictOut.keys
+    If Not dictAll.exists(key) Then dictAll.Add key, 1
+Next key
 
-        ' ===== считаем ушло =====
-        If dictOut.exists(oldStatus) Then
-            dictOut(oldStatus) = dictOut(oldStatus) + 1
-        Else
-            dictOut.Add oldStatus, 1
-        End If
 
-        ' ===== считаем пришло =====
-        If dictIn.exists(newStatus) Then
-            dictIn(newStatus) = dictIn(newStatus) + 1
-        Else
-            dictIn.Add newStatus, 1
-        End If
+' ===== заголовки =====
+statRow = 2
+col = 2
 
+For Each key In dictAll.keys
+    wsLog.Cells(statRow, col) = key
+    col = col + 1
+Next key
+
+
+' ===== пришло =====
+wsLog.Cells(statRow + 1, 1) = "Пришло"
+
+col = 2
+For Each key In dictAll.keys
+
+    If dictIn.exists(key) Then
+        wsLog.Cells(statRow + 1, col) = dictIn(key)
+    Else
+        wsLog.Cells(statRow + 1, col) = 0
     End If
 
-End If
+    col = col + 1
+
+Next key
+
+
+' ===== ушло =====
+wsLog.Cells(statRow + 2, 1) = "Ушло"
+
+col = 2
+For Each key In dictAll.keys
+
+    If dictOut.exists(key) Then
+        wsLog.Cells(statRow + 2, col) = dictOut(key)
+    Else
+        wsLog.Cells(statRow + 2, col) = 0
+    End If
+
+    col = col + 1
+
+Next key
