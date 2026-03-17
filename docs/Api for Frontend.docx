@@ -1,48 +1,74 @@
-'=============================
-' Маппинг статусов → конкретные ячейки
-'=============================
-Dim mapCells As Object
-Set mapCells = CreateObject("Scripting.Dictionary")
+Function ExtractDateFromText(txt As String) As String
 
-' Пример: статус → ячейка
-mapCells.Add "в наличии", "B2"
-mapCells.Add "не в сети", "C2"
-mapCells.Add "ремонт", "D2"
-mapCells.Add "отсутствует", "E2"
-' Добавляй свои статусы сюда
+    Dim months As Object
+    Set months = CreateObject("Scripting.Dictionary")
+    
+    months.Add "января", 1
+    months.Add "февраля", 2
+    months.Add "марта", 3
+    months.Add "апреля", 4
+    months.Add "мая", 5
+    months.Add "июня", 6
+    months.Add "июля", 7
+    months.Add "августа", 8
+    months.Add "сентября", 9
+    months.Add "октября", 10
+    months.Add "ноября", 11
+    months.Add "декабря", 12
 
-'=============================
-' Находим строку для вставки (например после существующих данных)
-'=============================
-Dim statRow As Long
-statRow = wsLog.Cells(wsLog.Rows.Count, 1).End(xlUp).Row + 2
+    Dim words() As String
+    Dim i As Long
+    Dim d As Long, m As Long, y As Long
+    Dim w As String
+    
+    txt = LCase(txt)
+    
+    ' Чистим текст
+    txt = Replace(txt, ".", " ")
+    txt = Replace(txt, ",", " ")
+    txt = Replace(txt, "/", " ")
+    txt = Replace(txt, "-", " ")
+    
+    words = Split(txt, " ")
+    
+    For i = LBound(words) To UBound(words)
+    
+        w = words(i)
+        
+        ' === формат 12 01 2026 ===
+        If IsNumeric(w) Then
+            
+            If i + 2 <= UBound(words) Then
+                
+                If IsNumeric(words(i + 1)) And IsNumeric(words(i + 2)) Then
+                    
+                    d = CLng(w)
+                    m = CLng(words(i + 1))
+                    y = CLng(words(i + 2))
+                    
+                    If d <= 31 And m <= 12 Then
+                        ExtractDateFromText = Format(DateSerial(y, m, d), "dd.mm.yyyy")
+                        Exit Function
+                    End If
+                    
+                End If
+                
+                ' === формат 12 марта 2026 ===
+                If months.exists(words(i + 1)) Then
+                    
+                    If IsNumeric(words(i + 2)) Then
+                        ExtractDateFromText = Format(DateSerial(words(i + 2), months(words(i + 1)), w), "dd.mm.yyyy")
+                        Exit Function
+                    End If
+                    
+                End If
+                
+            End If
+            
+        End If
+        
+    Next i
 
-' Подпись
-wsLog.Cells(statRow, 1) = "Изменения"
+    ExtractDateFromText = ""
 
-'=============================
-' Заполняем значения ПРИШЛО/УШЛО
-'=============================
-Dim key As Variant
-Dim inVal As Long, outVal As Long
-
-For Each key In mapCells.Keys
-
-    ' --- пришло ---
-    If dictIn.exists(key) Then
-        inVal = dictIn(key)
-    Else
-        inVal = 0
-    End If
-
-    ' --- ушло ---
-    If dictOut.exists(key) Then
-        outVal = dictOut(key)
-    Else
-        outVal = 0
-    End If
-
-    ' --- записываем в нужную ячейку ---
-    wsLog.Range(mapCells(key)).Value = inVal & "/" & outVal
-
-Next key
+End Function
