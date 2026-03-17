@@ -1,57 +1,48 @@
-Dim dictAll As Object
-Set dictAll = CreateObject("Scripting.Dictionary")
+'=============================
+' Маппинг статусов → конкретные ячейки
+'=============================
+Dim mapCells As Object
+Set mapCells = CreateObject("Scripting.Dictionary")
 
-Dim key
+' Пример: статус → ячейка
+mapCells.Add "в наличии", "B2"
+mapCells.Add "не в сети", "C2"
+mapCells.Add "ремонт", "D2"
+mapCells.Add "отсутствует", "E2"
+' Добавляй свои статусы сюда
 
-' собираем все статусы
-For Each key In dictIn.keys
-    If Not dictAll.exists(key) Then dictAll.Add key, 1
-Next key
+'=============================
+' Находим строку для вставки (например после существующих данных)
+'=============================
+Dim statRow As Long
+statRow = wsLog.Cells(wsLog.Rows.Count, 1).End(xlUp).Row + 2
 
-For Each key In dictOut.keys
-    If Not dictAll.exists(key) Then dictAll.Add key, 1
-Next key
+' Подпись
+wsLog.Cells(statRow, 1) = "Изменения"
 
+'=============================
+' Заполняем значения ПРИШЛО/УШЛО
+'=============================
+Dim key As Variant
+Dim inVal As Long, outVal As Long
 
-' ===== заголовки =====
-statRow = 2
-col = 2
+For Each key In mapCells.Keys
 
-For Each key In dictAll.keys
-    wsLog.Cells(statRow, col) = key
-    col = col + 1
-Next key
-
-
-' ===== пришло =====
-wsLog.Cells(statRow + 1, 1) = "Пришло"
-
-col = 2
-For Each key In dictAll.keys
-
+    ' --- пришло ---
     If dictIn.exists(key) Then
-        wsLog.Cells(statRow + 1, col) = dictIn(key)
+        inVal = dictIn(key)
     Else
-        wsLog.Cells(statRow + 1, col) = 0
+        inVal = 0
     End If
 
-    col = col + 1
-
-Next key
-
-
-' ===== ушло =====
-wsLog.Cells(statRow + 2, 1) = "Ушло"
-
-col = 2
-For Each key In dictAll.keys
-
+    ' --- ушло ---
     If dictOut.exists(key) Then
-        wsLog.Cells(statRow + 2, col) = dictOut(key)
+        outVal = dictOut(key)
     Else
-        wsLog.Cells(statRow + 2, col) = 0
+        outVal = 0
     End If
 
-    col = col + 1
+    ' --- записываем в нужную ячейку ---
+    wsLog.Range(mapCells(key)).Value = inVal & "/" & outVal
 
 Next key
