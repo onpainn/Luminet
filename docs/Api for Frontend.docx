@@ -1,74 +1,59 @@
-Function ExtractDateFromText(txt As String) As String
+Function ExtractOutDate(txt As String) As String
 
-    Dim months As Object
-    Set months = CreateObject("Scripting.Dictionary")
-    
-    months.Add "января", 1
-    months.Add "февраля", 2
-    months.Add "марта", 3
-    months.Add "апреля", 4
-    months.Add "мая", 5
-    months.Add "июня", 6
-    months.Add "июля", 7
-    months.Add "августа", 8
-    months.Add "сентября", 9
-    months.Add "октября", 10
-    months.Add "ноября", 11
-    months.Add "декабря", 12
-
+    Dim pos As Long
+    Dim subText As String
     Dim words() As String
-    Dim i As Long
-    Dim d As Long, m As Long, y As Long
-    Dim w As String
     
     txt = LCase(txt)
     
-    ' Чистим текст
-    txt = Replace(txt, ".", " ")
-    txt = Replace(txt, ",", " ")
-    txt = Replace(txt, "/", " ")
-    txt = Replace(txt, "-", " ")
+    pos = InStr(txt, "уехал")
     
-    words = Split(txt, " ")
+    If pos = 0 Then
+        ExtractOutDate = ""
+        Exit Function
+    End If
     
-    For i = LBound(words) To UBound(words)
+    ' берём ТОЛЬКО кусок после "уехал"
+    subText = Trim(Mid(txt, pos + 6))
     
-        w = words(i)
+    words = Split(subText, " ")
+    
+    ' ===== 1. формат 17.01.2025 =====
+    If UBound(words) >= 0 Then
+        If words(0) Like "##.##.####" Then
+            ExtractOutDate = words(0)
+            Exit Function
+        End If
+    End If
+    
+    ' ===== 2. формат 17 марта 2025 =====
+    If UBound(words) >= 2 Then
         
-        ' === формат 12 01 2026 ===
-        If IsNumeric(w) Then
+        Dim months As Object
+        Set months = CreateObject("Scripting.Dictionary")
+        
+        months.Add "января", 1
+        months.Add "февраля", 2
+        months.Add "марта", 3
+        months.Add "апреля", 4
+        months.Add "мая", 5
+        months.Add "июня", 6
+        months.Add "июля", 7
+        months.Add "августа", 8
+        months.Add "сентября", 9
+        months.Add "октября", 10
+        months.Add "ноября", 11
+        months.Add "декабря", 12
+        
+        If IsNumeric(words(0)) And months.exists(words(1)) And IsNumeric(words(2)) Then
             
-            If i + 2 <= UBound(words) Then
-                
-                If IsNumeric(words(i + 1)) And IsNumeric(words(i + 2)) Then
-                    
-                    d = CLng(w)
-                    m = CLng(words(i + 1))
-                    y = CLng(words(i + 2))
-                    
-                    If d <= 31 And m <= 12 Then
-                        ExtractDateFromText = Format(DateSerial(y, m, d), "dd.mm.yyyy")
-                        Exit Function
-                    End If
-                    
-                End If
-                
-                ' === формат 12 марта 2026 ===
-                If months.exists(words(i + 1)) Then
-                    
-                    If IsNumeric(words(i + 2)) Then
-                        ExtractDateFromText = Format(DateSerial(words(i + 2), months(words(i + 1)), w), "dd.mm.yyyy")
-                        Exit Function
-                    End If
-                    
-                End If
-                
-            End If
+            ExtractOutDate = Format(DateSerial(words(2), months(words(1)), words(0)), "dd.mm.yyyy")
+            Exit Function
             
         End If
         
-    Next i
-
-    ExtractDateFromText = ""
+    End If
+    
+    ExtractOutDate = ""
 
 End Function
