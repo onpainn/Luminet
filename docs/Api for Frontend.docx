@@ -2,22 +2,22 @@ Function ExtractStartDate(txt As Variant) As String
 
     Dim words() As String
     Dim i As Long, w As String
+    Dim dayVal As Long, monthVal As Long, yearVal As Long
     
     If IsError(txt) Or IsEmpty(txt) Then Exit Function
     
     txt = LCase(CStr(txt))
     
-    ' заменяем все разделители на пробел
-    txt = Replace(txt, ".", " ")
-    txt = Replace(txt, ",", " ")
-    txt = Replace(txt, ";", " ")
-    txt = Replace(txt, ":", " ")
+    ' заменяем только лишние разделители, чтобы разбить на слова
+    Dim tmp As String
+    tmp = Replace(txt, ",", " ")
+    tmp = Replace(tmp, ";", " ")
+    tmp = Replace(tmp, ":", " ")
     
-    words = Split(txt, " ")
+    words = Split(tmp, " ")
     
     Dim months As Object
     Set months = CreateObject("Scripting.Dictionary")
-    
     months.Add "января", 1
     months.Add "февраля", 2
     months.Add "марта", 3
@@ -37,15 +37,23 @@ Function ExtractStartDate(txt As Variant) As String
         w = CleanWord(words(i))
         
         ' ===== цифровая дата =====
-        If w Like "## ## ####" Then
-            ExtractStartDate = Format(DateSerial(words(i + 2), words(i + 1), words(i)), "dd.mm.yyyy")
+        If w Like "##.##.####" Then
+            ExtractStartDate = w  ' оставляем точки как в исходном тексте
             Exit Function
         End If
         
         ' ===== текстовый месяц =====
         If i + 2 <= UBound(words) Then
-            If IsNumeric(w) And months.exists(CleanWord(words(i + 1))) And IsNumeric(CleanWord(words(i + 2))) Then
-                ExtractStartDate = Format(DateSerial(words(i + 2), months(CleanWord(words(i + 1))), w), "dd.mm.yyyy")
+            Dim w1 As String, w2 As String
+            w1 = CleanWord(words(i + 1))
+            w2 = CleanWord(words(i + 2))
+            
+            If IsNumeric(w) And months.exists(w1) And IsNumeric(w2) Then
+                dayVal = CLng(w)
+                monthVal = months(w1)
+                yearVal = CLng(w2)
+                
+                ExtractStartDate = Format(DateSerial(yearVal, monthVal, dayVal), "dd.mm.yyyy")
                 Exit Function
             End If
         End If
@@ -53,27 +61,33 @@ Function ExtractStartDate(txt As Variant) As String
     Next i
 
 End Function
-
 Function ExtractEndDate(txt As Variant) As String
 
     Dim words() As String
     Dim i As Long, w As String
+    Dim dayVal As Long, monthVal As Long, yearVal As Long
     
     If IsError(txt) Or IsEmpty(txt) Then Exit Function
     
     txt = LCase(CStr(txt))
     
-    ' заменяем разделители на пробел
-    txt = Replace(txt, ".", " ")
-    txt = Replace(txt, ",", " ")
-    txt = Replace(txt, ";", " ")
-    txt = Replace(txt, ":", " ")
+    ' ищем слово "по" — обычно перед датой конца диапазона
+    Dim posPo As Long
+    posPo = InStr(txt, "по")
+    If posPo = 0 Then Exit Function
     
-    words = Split(txt, " ")
+    Dim subText As String
+    subText = Trim(Mid(txt, posPo + 2))
+    
+    ' заменяем только разделители
+    subText = Replace(subText, ",", " ")
+    subText = Replace(subText, ";", " ")
+    subText = Replace(subText, ":", " ")
+    
+    words = Split(subText, " ")
     
     Dim months As Object
     Set months = CreateObject("Scripting.Dictionary")
-    
     months.Add "января", 1
     months.Add "февраля", 2
     months.Add "марта", 3
@@ -87,31 +101,29 @@ Function ExtractEndDate(txt As Variant) As String
     months.Add "ноября", 11
     months.Add "декабря", 12
     
-    ' ищем слово "по" — обычно перед датой конца
-    Dim posPo As Long
-    posPo = InStr(txt, "по")
-    If posPo = 0 Then Exit Function
-    
-    Dim subText As String
-    subText = Trim(Mid(txt, posPo + 2))
-    
-    words = Split(subText, " ")
-    
     ' ищем первую дату в первых 6 словах после "по"
     For i = LBound(words) To Application.WorksheetFunction.Min(UBound(words), 5)
         
         w = CleanWord(words(i))
         
         ' ===== цифровая дата =====
-        If w Like "## ## ####" Then
-            ExtractEndDate = Format(DateSerial(words(i + 2), words(i + 1), words(i)), "dd.mm.yyyy")
+        If w Like "##.##.####" Then
+            ExtractEndDate = w  ' точки сохраняем
             Exit Function
         End If
         
         ' ===== текстовый месяц =====
         If i + 2 <= UBound(words) Then
-            If IsNumeric(w) And months.exists(CleanWord(words(i + 1))) And IsNumeric(CleanWord(words(i + 2))) Then
-                ExtractEndDate = Format(DateSerial(words(i + 2), months(CleanWord(words(i + 1))), w), "dd.mm.yyyy")
+            Dim w1 As String, w2 As String
+            w1 = CleanWord(words(i + 1))
+            w2 = CleanWord(words(i + 2))
+            
+            If IsNumeric(w) And months.exists(w1) And IsNumeric(w2) Then
+                dayVal = CLng(w)
+                monthVal = months(w1)
+                yearVal = CLng(w2)
+                
+                ExtractEndDate = Format(DateSerial(yearVal, monthVal, dayVal), "dd.mm.yyyy")
                 Exit Function
             End If
         End If
@@ -119,14 +131,11 @@ Function ExtractEndDate(txt As Variant) As String
     Next i
 
 End Function
-
 Function CleanWord(w As String) As String
-    w = Replace(w, ".", "")
     w = Replace(w, ",", "")
     w = Replace(w, ";", "")
     w = Replace(w, ":", "")
     w = Replace(w, "(", "")
     w = Replace(w, ")", "")
-    w = Trim(w)
-    CleanWord = w
+    CleanWord = Trim(w)
 End Function
