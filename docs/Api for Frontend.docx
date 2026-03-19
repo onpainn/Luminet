@@ -1,26 +1,45 @@
-Sub ExportRangeToWordTable()
+Sub ExportRangeFromChosenFile()
 
-    Dim wdApp As Object
-    Dim wdDoc As Object
-    Dim wdTable As Object
-    
+    Dim wbData As Workbook
     Dim ws As Worksheet
     Dim rng As Range
     
-    Dim i As Long, j As Long
+    Dim filePath As String
     
     ' =========================
-    ' EXCEL
+    ' ВЫБОР ФАЙЛА EXCEL
+    ' =========================
+    With Application.FileDialog(msoFileDialogFilePicker)
+        .Title = "Выбери файл с данными"
+        .Filters.Clear
+        .Filters.Add "Excel файлы", "*.xlsx; *.xlsm"
+        
+        If .Show = -1 Then
+            filePath = .SelectedItems(1)
+        Else
+            MsgBox "Файл не выбран!"
+            Exit Sub
+        End If
+    End With
+    
+    ' Открываем выбранный файл
+    Set wbData = Workbooks.Open(filePath)
+    Set ws = wbData.Sheets(1)
+    
+    ' =========================
+    ' ДИАПАЗОН
     ' =========================
     
-    Set ws = ThisWorkbook.Sheets(1)
-    
-    ' ⚠️ УКАЗЫВАЕШЬ СВОЙ ДИАПАЗОН
+    ' ⚠️ УКАЖИ СВОЙ ДИАПАЗОН
     Set rng = ws.Range("A2:E5")
     
     ' =========================
     ' WORD
     ' =========================
+    
+    Dim wdApp As Object
+    Dim wdDoc As Object
+    Dim wdTable As Object
     
     Set wdApp = CreateObject("Word.Application")
     wdApp.Visible = True
@@ -31,17 +50,19 @@ Sub ExportRangeToWordTable()
     
     Set wdDoc = wdApp.Documents.Open(templatePath)
     
-    ' ⚠️ БЕРЕМ ПЕРВУЮ ТАБЛИЦУ В WORD
+    ' Первая таблица в Word
     Set wdTable = wdDoc.Tables(1)
     
     ' =========================
     ' ПЕРЕНОС ДАННЫХ
     ' =========================
     
+    Dim i As Long, j As Long
+    
     For i = 1 To rng.Rows.Count
         For j = 1 To rng.Columns.Count
             
-            ' ⚠️ ЕСЛИ В WORD ЕСТЬ ШАПКА И ПЕРВАЯ КОЛОНКА
+            ' ⚠️ если есть заголовки в Word
             wdTable.Cell(i + 1, j + 1).Range.Text = rng.Cells(i, j).Value
             
         Next j
@@ -54,19 +75,19 @@ Sub ExportRangeToWordTable()
     Dim resultFolder As String
     Dim savePath As String
     
-    ' ⚠️ ПАПКА ДЛЯ РЕЗУЛЬТАТА
     resultFolder = "C:\Data\result\"
     
-    ' если папки нет — создаем
     If Dir(resultFolder, vbDirectory) = "" Then
         MkDir resultFolder
     End If
     
-    ' имя файла с датой
     savePath = resultFolder & "TableReport_" & Format(Date, "dd-mm-yyyy") & ".docx"
     
     wdDoc.SaveAs2 savePath
     
-    MsgBox "Таблица перенесена: " & savePath
+    ' Закрываем файл базы
+    wbData.Close False
+    
+    MsgBox "Готово: " & savePath
 
 End Sub
