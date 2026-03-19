@@ -1,104 +1,72 @@
-Sub ReportFromTemplate_SaveNextToTemplate()
+Sub ExportRangeToWordTable()
 
-    Dim wbData As Workbook
+    Dim wdApp As Object
+    Dim wdDoc As Object
+    Dim wdTable As Object
+    
     Dim ws As Worksheet
-    Dim i As Long, lastRow As Long
+    Dim rng As Range
     
-    ' --- СЧЕТЧИКИ ---
-    Dim total As Long, inStock As Long, inTransit As Long
-    Dim moscow As Long, spb As Long, noStock As Long, absent As Long
-    Dim category As String, status As String, city As String
+    Dim i As Long, j As Long
     
     ' =========================
-    ' ВЫБОР ФАЙЛА С БАЗОЙ
+    ' EXCEL
     ' =========================
-    Dim filePath As String
-    With Application.FileDialog(msoFileDialogFilePicker)
-        .Title = "Выбери файл с базой"
-        .Filters.Clear
-        .Filters.Add "Excel файлы", "*.xlsx; *.xlsm"
-        If .Show = -1 Then
-            filePath = .SelectedItems(1)
-        Else
-            MsgBox "Файл не выбран!"
-            Exit Sub
-        End If
-    End With
-    Set wbData = Workbooks.Open(filePath)
-    Set ws = wbData.Sheets(1)
     
-    ' =========================
-    ' ПОСЛЕДНЯЯ СТРОКА
-    ' =========================
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    Set ws = ThisWorkbook.Sheets(1)
     
-    ' =========================
-    ' ПОДСЧЕТЫ
-    ' =========================
-    For i = 2 To lastRow
-        category = ws.Cells(i, 3).Value
-        status = ws.Cells(i, 4).Value
-        city = ws.Cells(i, 5).Value
-        
-        ' --- Полный список ---
-        If category <> "Ноутбук" Then total = total + 1
-        
-        ' --- В наличии ---
-        If category <> "Ноутбук" And status = "В наличии" Then inStock = inStock + 1
-        
-        ' --- Едут на склад ---
-        If category <> "Ноутбук" And status = "Едут на склад" Then
-            inTransit = inTransit + 1
-            If city = "Москва" Then
-                moscow = moscow + 1
-            ElseIf city = "СПБ" Then
-                spb = spb + 1
-            End If
-        End If
-        
-        ' --- Нет в наличии ---
-        If category <> "Ноутбук" And status = "Нет в наличии" Then noStock = noStock + 1
-        
-        ' --- Отсутствует ---
-        If category <> "Ноутбук" And status = "Отсутствует" Then absent = absent + 1
-    Next i
+    ' ⚠️ УКАЗЫВАЕШЬ СВОЙ ДИАПАЗОН
+    Set rng = ws.Range("A2:E5")
     
     ' =========================
     ' WORD
     ' =========================
-    Dim wdApp As Object, wdDoc As Object
+    
     Set wdApp = CreateObject("Word.Application")
     wdApp.Visible = True
     
-    ' --- ШАБЛОН (статично) ---
+    ' ⚠️ ПУТЬ К ШАБЛОНУ
     Dim templatePath As String
-    templatePath = "C:\Data\template.docx"
+    templatePath = "C:\Data\template\template.docx"
     
     Set wdDoc = wdApp.Documents.Open(templatePath)
     
-    ' --- ЗАМЕНА МЕТОК ---
-    With wdDoc.Content.Find
-        .Execute FindText:="{DATE}", ReplaceWith:=Format(Date, "dd.mm.yyyy"), Replace:=2
-        .Execute FindText:="{TOTAL}", ReplaceWith:=total, Replace:=2
-        .Execute FindText:="{INSTOCK}", ReplaceWith:=inStock, Replace:=2
-        .Execute FindText:="{TRANSIT}", ReplaceWith:=inTransit, Replace:=2
-        .Execute FindText:="{MOSCOW}", ReplaceWith:=moscow, Replace:=2
-        .Execute FindText:="{SPB}", ReplaceWith:=spb, Replace:=2
-        .Execute FindText:="{NOSTOCK}", ReplaceWith:=noStock, Replace:=2
-        .Execute FindText:="{ABSENT}", ReplaceWith:=absent, Replace:=2
-    End With
+    ' ⚠️ БЕРЕМ ПЕРВУЮ ТАБЛИЦУ В WORD
+    Set wdTable = wdDoc.Tables(1)
     
     ' =========================
-    ' СОХРАНЕНИЕ В ТОЙ ЖЕ ПАПКЕ, РЯДОМ С ШАБЛОНОМ
+    ' ПЕРЕНОС ДАННЫХ
     ' =========================
+    
+    For i = 1 To rng.Rows.Count
+        For j = 1 To rng.Columns.Count
+            
+            ' ⚠️ ЕСЛИ В WORD ЕСТЬ ШАПКА И ПЕРВАЯ КОЛОНКА
+            wdTable.Cell(i + 1, j + 1).Range.Text = rng.Cells(i, j).Value
+            
+        Next j
+    Next i
+    
+    ' =========================
+    ' СОХРАНЕНИЕ
+    ' =========================
+    
+    Dim resultFolder As String
     Dim savePath As String
-    Dim folderPath As String
-    folderPath = Left(templatePath, InStrRev(templatePath, "\"))  ' папка шаблона
-    savePath = folderPath & "Report_" & Format(Date, "dd-mm-yyyy") & ".docx"
+    
+    ' ⚠️ ПАПКА ДЛЯ РЕЗУЛЬТАТА
+    resultFolder = "C:\Data\result\"
+    
+    ' если папки нет — создаем
+    If Dir(resultFolder, vbDirectory) = "" Then
+        MkDir resultFolder
+    End If
+    
+    ' имя файла с датой
+    savePath = resultFolder & "TableReport_" & Format(Date, "dd-mm-yyyy") & ".docx"
     
     wdDoc.SaveAs2 savePath
-    wbData.Close False
     
-    MsgBox "Отчет готов: " & savePath
+    MsgBox "Таблица перенесена: " & savePath
 
 End Sub
