@@ -1,141 +1,126 @@
-Function ExtractStartDate(txt As Variant) As String
+Sub ReportFromTemplate()
 
-    Dim words() As String
-    Dim i As Long, w As String
-    Dim dayVal As Long, monthVal As Long, yearVal As Long
+    Dim wbData As Workbook
+    Dim ws As Worksheet
+    Dim i As Long, lastRow As Long
     
-    If IsError(txt) Or IsEmpty(txt) Then Exit Function
+    ' --- СЧЕТЧИКИ ---
+    Dim total As Long
+    Dim inStock As Long
+    Dim inTransit As Long
+    Dim moscow As Long
+    Dim spb As Long
+    Dim absent As Long
+    Dim noStock As Long
     
-    txt = LCase(CStr(txt))
+    Dim status As String
+    Dim city As String
     
-    ' заменяем только лишние разделители, чтобы разбить на слова
-    Dim tmp As String
-    tmp = Replace(txt, ",", " ")
-    tmp = Replace(tmp, ";", " ")
-    tmp = Replace(tmp, ":", " ")
-    
-    words = Split(tmp, " ")
-    
-    Dim months As Object
-    Set months = CreateObject("Scripting.Dictionary")
-    months.Add "января", 1
-    months.Add "февраля", 2
-    months.Add "марта", 3
-    months.Add "апреля", 4
-    months.Add "мая", 5
-    months.Add "июня", 6
-    months.Add "июля", 7
-    months.Add "августа", 8
-    months.Add "сентября", 9
-    months.Add "октября", 10
-    months.Add "ноября", 11
-    months.Add "декабря", 12
-    
-    ' ищем первую дату в первых 10 словах
-    For i = LBound(words) To Application.WorksheetFunction.Min(UBound(words), 9)
+    ' =========================
+    ' ВЫБОР ФАЙЛА С БАЗОЙ
+    ' =========================
+    Dim filePath As String
+
+    With Application.FileDialog(msoFileDialogFilePicker)
+        .Title = "Выбери файл с базой"
+        .Filters.Clear
+        .Filters.Add "Excel файлы", "*.xlsx; *.xlsm"
         
-        w = CleanWord(words(i))
-        
-        ' ===== цифровая дата =====
-        If w Like "##.##.####" Then
-            ExtractStartDate = w  ' оставляем точки как в исходном тексте
-            Exit Function
+        If .Show = -1 Then
+            filePath = .SelectedItems(1)
+        Else
+            MsgBox "Файл не выбран!"
+            Exit Sub
         End If
+    End With
+
+    Set wbData = Workbooks.Open(filePath)
+    
+    ' --- ЛИСТ ---
+    Set ws = wbData.Sheets(1)
+    
+    ' --- ПОСЛЕДНЯЯ СТРОКА ---
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    ' =========================
+    ' СБОР ДАННЫХ
+    ' =========================
+    For i = 2 To lastRow
         
-        ' ===== текстовый месяц =====
-        If i + 2 <= UBound(words) Then
-            Dim w1 As String, w2 As String
-            w1 = CleanWord(words(i + 1))
-            w2 = CleanWord(words(i + 2))
-            
-            If IsNumeric(w) And months.exists(w1) And IsNumeric(w2) Then
-                dayVal = CLng(w)
-                monthVal = months(w1)
-                yearVal = CLng(w2)
+        total = total + 1
+        
+        ' ⚠️ КОЛОНКА СТАТУСА (МЕНЯЙ 4)
+        status = ws.Cells(i, 4).Value
+        
+        ' ⚠️ КОЛОНКА ГОРОДА (МЕНЯЙ 5)
+        city = ws.Cells(i, 5).Value
+        
+        Select Case status
+        
+            Case "В наличии"
+                inStock = inStock + 1
                 
-                ExtractStartDate = Format(DateSerial(yearVal, monthVal, dayVal), "dd.mm.yyyy")
-                Exit Function
-            End If
-        End If
+            Case "Едут на склад"
+                inTransit = inTransit + 1
+                
+                If city = "Москва" Then
+                    moscow = moscow + 1
+                ElseIf city = "СПБ" Then
+                    spb = spb + 1
+                End If
+                
+            Case "Отсутствует"
+                absent = absent + 1
+                
+            Case "Нет в наличии"
+                noStock = noStock + 1
+                
+        End Select
         
     Next i
+    
+    ' =========================
+    ' WORD
+    ' =========================
+    
+    Dim wdApp As Object
+    Dim wdDoc As Object
+    
+    Set wdApp = CreateObject("Word.Application")
+    wdApp.Visible = True
+    
+    ' --- СТАТИЧНЫЙ ПУТЬ К ШАБЛОНУ ---
+    ' ⚠️ ПОМЕНЯЙ ПОД СЕБЯ
+    Set wdDoc = wdApp.Documents.Open("C:\Data\template.docx")
+    
+    ' =========================
+    ' ЗАМЕНА МЕТОК
+    ' =========================
+    With wdDoc.Content.Find
+    
+        .Execute "{DATE}", ReplaceWith:=Format(Date, "dd.mm.yyyy"), Replace:=2
+        .Execute "{TOTAL}", ReplaceWith:=total, Replace:=2
+        .Execute "{INSTOCK}", ReplaceWith:=inStock, Replace:=2
+        .Execute "{TRANSIT}", ReplaceWith:=inTransit, Replace:=2
+        .Execute "{MOSCOW}", ReplaceWith:=moscow, Replace:=2
+        .Execute "{SPB}", ReplaceWith:=spb, Replace:=2
+        .Execute "{ABSENT}", ReplaceWith:=absent, Replace:=2
+        .Execute "{NOSTOCK}", ReplaceWith:=noStock, Replace:=2
+        
+    End With
+    
+    ' =========================
+    ' СОХРАНЕНИЕ
+    ' =========================
+    
+    ' ⚠️ МОЖНО СДЕЛАТЬ С ДАТОЙ
+    Dim savePath As String
+    savePath = "C:\Data\Report_" & Format(Date, "dd-mm-yyyy") & ".docx"
+    
+    wdDoc.SaveAs2 savePath
+    
+    wbData.Close False
+    
+    MsgBox "Отчет готов: " & savePath
 
-End Function
-Function ExtractEndDate(txt As Variant) As String
-
-    Dim words() As String
-    Dim i As Long, w As String
-    Dim dayVal As Long, monthVal As Long, yearVal As Long
-    
-    If IsError(txt) Or IsEmpty(txt) Then Exit Function
-    
-    txt = LCase(CStr(txt))
-    
-    ' ищем слово "по" — обычно перед датой конца диапазона
-    Dim posPo As Long
-    posPo = InStr(txt, "по")
-    If posPo = 0 Then Exit Function
-    
-    Dim subText As String
-    subText = Trim(Mid(txt, posPo + 2))
-    
-    ' заменяем только разделители
-    subText = Replace(subText, ",", " ")
-    subText = Replace(subText, ";", " ")
-    subText = Replace(subText, ":", " ")
-    
-    words = Split(subText, " ")
-    
-    Dim months As Object
-    Set months = CreateObject("Scripting.Dictionary")
-    months.Add "января", 1
-    months.Add "февраля", 2
-    months.Add "марта", 3
-    months.Add "апреля", 4
-    months.Add "мая", 5
-    months.Add "июня", 6
-    months.Add "июля", 7
-    months.Add "августа", 8
-    months.Add "сентября", 9
-    months.Add "октября", 10
-    months.Add "ноября", 11
-    months.Add "декабря", 12
-    
-    ' ищем первую дату в первых 6 словах после "по"
-    For i = LBound(words) To Application.WorksheetFunction.Min(UBound(words), 5)
-        
-        w = CleanWord(words(i))
-        
-        ' ===== цифровая дата =====
-        If w Like "##.##.####" Then
-            ExtractEndDate = w  ' точки сохраняем
-            Exit Function
-        End If
-        
-        ' ===== текстовый месяц =====
-        If i + 2 <= UBound(words) Then
-            Dim w1 As String, w2 As String
-            w1 = CleanWord(words(i + 1))
-            w2 = CleanWord(words(i + 2))
-            
-            If IsNumeric(w) And months.exists(w1) And IsNumeric(w2) Then
-                dayVal = CLng(w)
-                monthVal = months(w1)
-                yearVal = CLng(w2)
-                
-                ExtractEndDate = Format(DateSerial(yearVal, monthVal, dayVal), "dd.mm.yyyy")
-                Exit Function
-            End If
-        End If
-        
-    Next i
-
-End Function
-Function CleanWord(w As String) As String
-    w = Replace(w, ",", "")
-    w = Replace(w, ";", "")
-    w = Replace(w, ":", "")
-    w = Replace(w, "(", "")
-    w = Replace(w, ")", "")
-    CleanWord = Trim(w)
-End Function
+End Sub
