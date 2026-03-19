@@ -1,31 +1,22 @@
-Sub ReportFromTemplate()
+Sub ReportFromTemplate_SaveNextToTemplate()
 
     Dim wbData As Workbook
     Dim ws As Worksheet
     Dim i As Long, lastRow As Long
     
     ' --- СЧЕТЧИКИ ---
-    Dim total As Long
-    Dim inStock As Long
-    Dim inTransit As Long
-    Dim moscow As Long
-    Dim spb As Long
-    Dim absent As Long
-    Dim noStock As Long
-    
-    Dim status As String
-    Dim city As String
+    Dim total As Long, inStock As Long, inTransit As Long
+    Dim moscow As Long, spb As Long, noStock As Long, absent As Long
+    Dim category As String, status As String, city As String
     
     ' =========================
     ' ВЫБОР ФАЙЛА С БАЗОЙ
     ' =========================
     Dim filePath As String
-
     With Application.FileDialog(msoFileDialogFilePicker)
         .Title = "Выбери файл с базой"
         .Filters.Clear
         .Filters.Add "Excel файлы", "*.xlsx; *.xlsm"
-        
         If .Show = -1 Then
             filePath = .SelectedItems(1)
         Else
@@ -33,92 +24,79 @@ Sub ReportFromTemplate()
             Exit Sub
         End If
     End With
-
     Set wbData = Workbooks.Open(filePath)
-    
-    ' --- ЛИСТ ---
     Set ws = wbData.Sheets(1)
     
-    ' --- ПОСЛЕДНЯЯ СТРОКА ---
+    ' =========================
+    ' ПОСЛЕДНЯЯ СТРОКА
+    ' =========================
     lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
     
     ' =========================
-    ' СБОР ДАННЫХ
+    ' ПОДСЧЕТЫ
     ' =========================
     For i = 2 To lastRow
-        
-        total = total + 1
-        
-        ' ⚠️ КОЛОНКА СТАТУСА (МЕНЯЙ 4)
+        category = ws.Cells(i, 3).Value
         status = ws.Cells(i, 4).Value
-        
-        ' ⚠️ КОЛОНКА ГОРОДА (МЕНЯЙ 5)
         city = ws.Cells(i, 5).Value
         
-        Select Case status
+        ' --- Полный список ---
+        If category <> "Ноутбук" Then total = total + 1
         
-            Case "В наличии"
-                inStock = inStock + 1
-                
-            Case "Едут на склад"
-                inTransit = inTransit + 1
-                
-                If city = "Москва" Then
-                    moscow = moscow + 1
-                ElseIf city = "СПБ" Then
-                    spb = spb + 1
-                End If
-                
-            Case "Отсутствует"
-                absent = absent + 1
-                
-            Case "Нет в наличии"
-                noStock = noStock + 1
-                
-        End Select
+        ' --- В наличии ---
+        If category <> "Ноутбук" And status = "В наличии" Then inStock = inStock + 1
         
+        ' --- Едут на склад ---
+        If category <> "Ноутбук" And status = "Едут на склад" Then
+            inTransit = inTransit + 1
+            If city = "Москва" Then
+                moscow = moscow + 1
+            ElseIf city = "СПБ" Then
+                spb = spb + 1
+            End If
+        End If
+        
+        ' --- Нет в наличии ---
+        If category <> "Ноутбук" And status = "Нет в наличии" Then noStock = noStock + 1
+        
+        ' --- Отсутствует ---
+        If category <> "Ноутбук" And status = "Отсутствует" Then absent = absent + 1
     Next i
     
     ' =========================
     ' WORD
     ' =========================
-    
-    Dim wdApp As Object
-    Dim wdDoc As Object
-    
+    Dim wdApp As Object, wdDoc As Object
     Set wdApp = CreateObject("Word.Application")
     wdApp.Visible = True
     
-    ' --- СТАТИЧНЫЙ ПУТЬ К ШАБЛОНУ ---
-    ' ⚠️ ПОМЕНЯЙ ПОД СЕБЯ
-    Set wdDoc = wdApp.Documents.Open("C:\Data\template.docx")
+    ' --- ШАБЛОН (статично) ---
+    Dim templatePath As String
+    templatePath = "C:\Data\template.docx"
     
-    ' =========================
-    ' ЗАМЕНА МЕТОК
-    ' =========================
+    Set wdDoc = wdApp.Documents.Open(templatePath)
+    
+    ' --- ЗАМЕНА МЕТОК ---
     With wdDoc.Content.Find
-    
-        .Execute "{DATE}", ReplaceWith:=Format(Date, "dd.mm.yyyy"), Replace:=2
-        .Execute "{TOTAL}", ReplaceWith:=total, Replace:=2
-        .Execute "{INSTOCK}", ReplaceWith:=inStock, Replace:=2
-        .Execute "{TRANSIT}", ReplaceWith:=inTransit, Replace:=2
-        .Execute "{MOSCOW}", ReplaceWith:=moscow, Replace:=2
-        .Execute "{SPB}", ReplaceWith:=spb, Replace:=2
-        .Execute "{ABSENT}", ReplaceWith:=absent, Replace:=2
-        .Execute "{NOSTOCK}", ReplaceWith:=noStock, Replace:=2
-        
+        .Execute FindText:="{DATE}", ReplaceWith:=Format(Date, "dd.mm.yyyy"), Replace:=2
+        .Execute FindText:="{TOTAL}", ReplaceWith:=total, Replace:=2
+        .Execute FindText:="{INSTOCK}", ReplaceWith:=inStock, Replace:=2
+        .Execute FindText:="{TRANSIT}", ReplaceWith:=inTransit, Replace:=2
+        .Execute FindText:="{MOSCOW}", ReplaceWith:=moscow, Replace:=2
+        .Execute FindText:="{SPB}", ReplaceWith:=spb, Replace:=2
+        .Execute FindText:="{NOSTOCK}", ReplaceWith:=noStock, Replace:=2
+        .Execute FindText:="{ABSENT}", ReplaceWith:=absent, Replace:=2
     End With
     
     ' =========================
-    ' СОХРАНЕНИЕ
+    ' СОХРАНЕНИЕ В ТОЙ ЖЕ ПАПКЕ, РЯДОМ С ШАБЛОНОМ
     ' =========================
-    
-    ' ⚠️ МОЖНО СДЕЛАТЬ С ДАТОЙ
     Dim savePath As String
-    savePath = "C:\Data\Report_" & Format(Date, "dd-mm-yyyy") & ".docx"
+    Dim folderPath As String
+    folderPath = Left(templatePath, InStrRev(templatePath, "\"))  ' папка шаблона
+    savePath = folderPath & "Report_" & Format(Date, "dd-mm-yyyy") & ".docx"
     
     wdDoc.SaveAs2 savePath
-    
     wbData.Close False
     
     MsgBox "Отчет готов: " & savePath
