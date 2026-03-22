@@ -1,92 +1,122 @@
-Sub ExportRangeFromChosenFile()
+Sub ExportByStatus_Full()
 
-    Dim wbData As Workbook
-    Dim ws As Worksheet
-    Dim rng As Range
+    Dim wbSource As Workbook
+    Dim wsSource As Worksheet
     
-    Dim filePath As String
+    Dim wbNew As Workbook
+    Dim wsNew As Worksheet
+    
+    Dim fd As FileDialog
+    Dim statusFilter As String
+    
+    Dim i As Long, lastRow As Long
+    Dim newRow As Long
     
     ' =========================
-    ' ВЫБОР ФАЙЛА EXCEL
+    ' СТАТУС ИЗ ВЫПАДАЮЩЕГО СПИСКА
     ' =========================
-    With Application.FileDialog(msoFileDialogFilePicker)
-        .Title = "Выбери файл с данными"
-        .Filters.Clear
-        .Filters.Add "Excel файлы", "*.xlsx; *.xlsm"
+    statusFilter = Replace(Replace(UCase(Trim(ThisWorkbook.Sheets(1).Range("A1").Value)), Chr(160), ""), """", "")
+    
+    If statusFilter = "" Then
+        MsgBox "Выбери статус"
+        Exit Sub
+    End If
+    
+    ' =========================
+    ' ВЫБОР ГЛАВНОГО ФАЙЛА
+    ' =========================
+    Set fd = Application.FileDialog(msoFileDialogFilePicker)
+    fd.Title = "Выбери главный файл"
+    fd.Filters.Clear
+    fd.Filters.Add "Excel", "*.xlsx;*.xlsm;*.xls"
+    
+    If fd.Show <> -1 Then Exit Sub
+    
+    Set wbSource = Workbooks.Open(fd.SelectedItems(1))
+    Set wsSource = wbSource.Sheets(1)
+    
+    ' =========================
+    ' СОЗДАЕМ НОВЫЙ ФАЙЛ
+    ' =========================
+    Set wbNew = Workbooks.Add
+    Set wsNew = wbNew.Sheets(1)
+    
+    ' =========================
+    ' 🔥 ШАПКА (НАСТРАИВАЙ)
+    ' =========================
+    wsNew.Cells(1, 1).Value = "ID"
+    wsNew.Cells(1, 2).Value = "Название"
+    wsNew.Cells(1, 3).Value = "Категория"
+    wsNew.Cells(1, 4).Value = "Статус"
+    wsNew.Cells(1, 5).Value = "Город"
+    
+    newRow = 2
+    lastRow = wsSource.Cells(wsSource.Rows.Count, 1).End(xlUp).Row
+    
+    ' =========================
+    ' ЦИКЛ ПО ДАННЫМ
+    ' =========================
+    For i = 2 To lastRow
         
-        If .Show = -1 Then
-            filePath = .SelectedItems(1)
-        Else
-            MsgBox "Файл не выбран!"
-            Exit Sub
+        Dim status As String
+        
+        status = Replace(Replace(UCase(Trim(wsSource.Cells(i, 4).Value)), Chr(160), ""), """", "")
+        
+        ' фильтр по статусу
+        If status = statusFilter Then
+            
+            ' 🔥 ВСТАВКА НУЖНЫХ ДАННЫХ (МЕНЯЙ ПОД СЕБЯ)
+            wsNew.Cells(newRow, 1).Value = wsSource.Cells(i, 1).Value ' ID
+            wsNew.Cells(newRow, 2).Value = wsSource.Cells(i, 2).Value ' Название
+            wsNew.Cells(newRow, 3).Value = wsSource.Cells(i, 3).Value ' Категория
+            wsNew.Cells(newRow, 4).Value = wsSource.Cells(i, 4).Value ' Статус
+            wsNew.Cells(newRow, 5).Value = wsSource.Cells(i, 5).Value ' Город
+            
+            newRow = newRow + 1
+            
         End If
-    End With
-    
-    ' Открываем выбранный файл
-    Set wbData = Workbooks.Open(filePath)
-    Set ws = wbData.Sheets(1)
-    
-    ' =========================
-    ' ДИАПАЗОН
-    ' =========================
-    
-    ' ⚠️ УКАЖИ СВОЙ ДИАПАЗОН
-    Set rng = ws.Range("A2:E5")
-    
-    ' =========================
-    ' WORD
-    ' =========================
-    
-    Dim wdApp As Object
-    Dim wdDoc As Object
-    Dim wdTable As Object
-    
-    Set wdApp = CreateObject("Word.Application")
-    wdApp.Visible = True
-    
-    ' ⚠️ ПУТЬ К ШАБЛОНУ
-    Dim templatePath As String
-    templatePath = "C:\Data\template\template.docx"
-    
-    Set wdDoc = wdApp.Documents.Open(templatePath)
-    
-    ' Первая таблица в Word
-    Set wdTable = wdDoc.Tables(1)
-    
-    ' =========================
-    ' ПЕРЕНОС ДАННЫХ
-    ' =========================
-    
-    Dim i As Long, j As Long
-    
-    For i = 1 To rng.Rows.Count
-        For j = 1 To rng.Columns.Count
-            
-            ' ⚠️ если есть заголовки в Word
-            wdTable.Cell(i + 1, j + 1).Range.Text = rng.Cells(i, j).Value
-            
-        Next j
+        
     Next i
     
     ' =========================
-    ' СОХРАНЕНИЕ
+    ' 🔥 СОРТИРОВКА ПО 2 КОЛОНКЕ (АЛФАВИТ)
     ' =========================
+    Dim lastNewRow As Long
     
-    Dim resultFolder As String
-    Dim savePath As String
+    lastNewRow = wsNew.Cells(wsNew.Rows.Count, 1).End(xlUp).Row
     
-    resultFolder = "C:\Data\result\"
-    
-    If Dir(resultFolder, vbDirectory) = "" Then
-        MkDir resultFolder
+    If lastNewRow > 1 Then
+        With wsNew.Sort
+            .SortFields.Clear
+            .SortFields.Add Key:=wsNew.Range("B2:B" & lastNewRow), Order:=xlAscending
+            .SetRange wsNew.Range("A1:E" & lastNewRow)
+            .Header = xlYes
+            .Apply
+        End With
     End If
     
-    savePath = resultFolder & "TableReport_" & Format(Date, "dd-mm-yyyy") & ".docx"
+    ' =========================
+    ' 🔥 СОХРАНЕНИЕ В ПАПКУ result
+    ' =========================
     
-    wdDoc.SaveAs2 savePath
+    Dim folderPath As String
+    Dim fileName As String
+    Dim savePath As String
     
-    ' Закрываем файл базы
-    wbData.Close False
+    ' путь к папке result рядом с файлом
+    folderPath = ThisWorkbook.Path & "\result\"
+    
+    ' если папки нет — создаем
+    If Dir(folderPath, vbDirectory) = "" Then
+        MkDir folderPath
+    End If
+    
+    fileName = "Report_" & statusFilter & "_" & Format(Date, "dd-mm-yyyy") & ".xlsx"
+    savePath = folderPath & fileName
+    
+    wbNew.SaveAs savePath
+    
+    wbSource.Close False
     
     MsgBox "Готово: " & savePath
 
