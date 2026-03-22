@@ -1,4 +1,4 @@
-Sub ExportByStatus_Full()
+Sub ExportByStatus_ULTRA_FAST()
 
     Dim wbSource As Workbook
     Dim wsSource As Worksheet
@@ -9,80 +9,96 @@ Sub ExportByStatus_Full()
     Dim fd As FileDialog
     Dim statusFilter As String
     
-    Dim i As Long, lastRow As Long
-    Dim newRow As Long
+    Dim data As Variant
+    Dim result() As Variant
+    
+    Dim i As Long, j As Long
+    Dim lastRow As Long
+    Dim colCount As Long
+    Dim resultRow As Long
     
     ' =========================
-    ' СТАТУС ИЗ ВЫПАДАЮЩЕГО СПИСКА
+    ' УСКОРЕНИЕ
+    ' =========================
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    ' =========================
+    ' СТАТУС
     ' =========================
     statusFilter = Replace(Replace(UCase(Trim(ThisWorkbook.Sheets(1).Range("A1").Value)), Chr(160), ""), """", "")
     
     If statusFilter = "" Then
         MsgBox "Выбери статус"
-        Exit Sub
+        GoTo ExitHandler
     End If
     
     ' =========================
-    ' ВЫБОР ГЛАВНОГО ФАЙЛА
+    ' ВЫБОР ФАЙЛА
     ' =========================
     Set fd = Application.FileDialog(msoFileDialogFilePicker)
-    fd.Title = "Выбери главный файл"
-    fd.Filters.Clear
-    fd.Filters.Add "Excel", "*.xlsx;*.xlsm;*.xls"
-    
-    If fd.Show <> -1 Then Exit Sub
+    If fd.Show <> -1 Then GoTo ExitHandler
     
     Set wbSource = Workbooks.Open(fd.SelectedItems(1))
     Set wsSource = wbSource.Sheets(1)
     
     ' =========================
-    ' СОЗДАЕМ НОВЫЙ ФАЙЛ
+    ' ЗАГРУЗКА В МАССИВ
     ' =========================
-    Set wbNew = Workbooks.Add
-    Set wsNew = wbNew.Sheets(1)
-    
-    ' =========================
-    ' 🔥 ШАПКА (НАСТРАИВАЙ)
-    ' =========================
-    wsNew.Cells(1, 1).Value = "ID"
-    wsNew.Cells(1, 2).Value = "Название"
-    wsNew.Cells(1, 3).Value = "Категория"
-    wsNew.Cells(1, 4).Value = "Статус"
-    wsNew.Cells(1, 5).Value = "Город"
-    
-    newRow = 2
     lastRow = wsSource.Cells(wsSource.Rows.Count, 1).End(xlUp).Row
+    colCount = 5 ' сколько колонок берем
+    
+    data = wsSource.Range("A2:E" & lastRow).Value
     
     ' =========================
-    ' ЦИКЛ ПО ДАННЫМ
+    ' СОЗДАЕМ МАССИВ РЕЗУЛЬТАТА
     ' =========================
-    For i = 2 To lastRow
+    ReDim result(1 To UBound(data, 1), 1 To colCount)
+    
+    resultRow = 0
+    
+    ' =========================
+    ' ФИЛЬТРАЦИЯ В ПАМЯТИ
+    ' =========================
+    For i = 1 To UBound(data, 1)
         
         Dim status As String
         
-        status = Replace(Replace(UCase(Trim(wsSource.Cells(i, 4).Value)), Chr(160), ""), """", "")
+        status = Replace(Replace(UCase(Trim(data(i, 4))), Chr(160), ""), """", "")
         
-        ' фильтр по статусу
         If status = statusFilter Then
             
-            ' 🔥 ВСТАВКА НУЖНЫХ ДАННЫХ (МЕНЯЙ ПОД СЕБЯ)
-            wsNew.Cells(newRow, 1).Value = wsSource.Cells(i, 1).Value ' ID
-            wsNew.Cells(newRow, 2).Value = wsSource.Cells(i, 2).Value ' Название
-            wsNew.Cells(newRow, 3).Value = wsSource.Cells(i, 3).Value ' Категория
-            wsNew.Cells(newRow, 4).Value = wsSource.Cells(i, 4).Value ' Статус
-            wsNew.Cells(newRow, 5).Value = wsSource.Cells(i, 5).Value ' Город
+            resultRow = resultRow + 1
             
-            newRow = newRow + 1
+            For j = 1 To colCount
+                result(resultRow, j) = data(i, j)
+            Next j
             
         End If
         
     Next i
     
     ' =========================
-    ' 🔥 СОРТИРОВКА ПО 2 КОЛОНКЕ (АЛФАВИТ)
+    ' НОВЫЙ ФАЙЛ
+    ' =========================
+    Set wbNew = Workbooks.Add
+    Set wsNew = wbNew.Sheets(1)
+    
+    ' ШАПКА
+    wsNew.Range("A1:E1").Value = Array("ID", "Название", "Категория", "Статус", "Город")
+    
+    ' =========================
+    ' ВЫГРУЗКА В EXCEL
+    ' =========================
+    If resultRow > 0 Then
+        wsNew.Range("A2").Resize(resultRow, colCount).Value = result
+    End If
+    
+    ' =========================
+    ' СОРТИРОВКА
     ' =========================
     Dim lastNewRow As Long
-    
     lastNewRow = wsNew.Cells(wsNew.Rows.Count, 1).End(xlUp).Row
     
     If lastNewRow > 1 Then
@@ -96,28 +112,38 @@ Sub ExportByStatus_Full()
     End If
     
     ' =========================
-    ' 🔥 СОХРАНЕНИЕ В ПАПКУ result
+    ' ОФОРМЛЕНИЕ
     ' =========================
+    With wsNew.Range("A1:E" & lastNewRow)
+        .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Borders.LineStyle = xlContinuous
+    End With
     
+    wsNew.Range("A1:E1").Font.Bold = True
+    wsNew.Columns("A:E").AutoFit
+    
+    ' =========================
+    ' СОХРАНЕНИЕ
+    ' =========================
     Dim folderPath As String
-    Dim fileName As String
     Dim savePath As String
     
-    ' путь к папке result рядом с файлом
     folderPath = ThisWorkbook.Path & "\result\"
+    If Dir(folderPath, vbDirectory) = "" Then MkDir folderPath
     
-    ' если папки нет — создаем
-    If Dir(folderPath, vbDirectory) = "" Then
-        MkDir folderPath
-    End If
-    
-    fileName = "Report_" & statusFilter & "_" & Format(Date, "dd-mm-yyyy") & ".xlsx"
-    savePath = folderPath & fileName
+    savePath = folderPath & "Report_" & statusFilter & "_" & Format(Date, "dd-mm-yyyy") & ".xlsx"
     
     wbNew.SaveAs savePath
     
     wbSource.Close False
     
     MsgBox "Готово: " & savePath
+
+ExitHandler:
+    
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
 
 End Sub
