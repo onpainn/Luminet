@@ -1,149 +1,95 @@
-Sub ExportByStatus_ULTRA_FAST()
+Sub FullAuto_Copy_WithComments_NewLine()
 
-    Dim wbSource As Workbook
-    Dim wsSource As Worksheet
+    Dim sourceWB As Workbook, targetWB As Workbook
+    Dim sourceWS As Worksheet, targetWS As Worksheet
     
-    Dim wbNew As Workbook
-    Dim wsNew As Worksheet
+    Dim sourceRange As Range
+    Dim lastRow As Long, lastCol As Long
+    Dim targetStartRow As Long
+    Dim commentCol As Long
     
-    Dim fd As FileDialog
-    Dim statusFilter As String
+    Dim r As Long, c As Long
+    Dim txt As String
     
-    Dim data As Variant
-    Dim result() As Variant
-    
-    Dim i As Long, j As Long
-    Dim lastRow As Long
-    Dim colCount As Long
-    Dim resultRow As Long
-    
-    ' =========================
-    ' УСКОРЕНИЕ
-    ' =========================
-    Application.ScreenUpdating = False
-    Application.Calculation = xlCalculationManual
-    Application.EnableEvents = False
-    
-    ' =========================
-    ' СТАТУС
-    ' =========================
-    statusFilter = Replace(Replace(UCase(Trim(ThisWorkbook.Sheets(1).Range("A1").Value)), Chr(160), ""), """", "")
-    
-    If statusFilter = "" Then
-        MsgBox "Выбери статус"
-        GoTo ExitHandler
-    End If
-    
-    ' =========================
-    ' ВЫБОР ФАЙЛА
-    ' =========================
-    Set fd = Application.FileDialog(msoFileDialogFilePicker)
-    If fd.Show <> -1 Then GoTo ExitHandler
-    
-    Set wbSource = Workbooks.Open(fd.SelectedItems(1))
-    Set wsSource = wbSource.Sheets(1)
-    
-    ' =========================
-    ' ЗАГРУЗКА В МАССИВ
-    ' =========================
-    lastRow = wsSource.Cells(wsSource.Rows.Count, 1).End(xlUp).Row
-    colCount = 5 ' сколько колонок берем
-    
-    data = wsSource.Range("A2:E" & lastRow).Value
-    
-    ' =========================
-    ' СОЗДАЕМ МАССИВ РЕЗУЛЬТАТА
-    ' =========================
-    ReDim result(1 To UBound(data, 1), 1 To colCount)
-    
-    resultRow = 0
-    
-    ' =========================
-    ' ФИЛЬТРАЦИЯ В ПАМЯТИ
-    ' =========================
-    For i = 1 To UBound(data, 1)
-        
-        Dim status As String
-        
-        status = Replace(Replace(UCase(Trim(data(i, 4))), Chr(160), ""), """", "")
-        
-        If status = statusFilter Then
-            
-            resultRow = resultRow + 1
-            
-            For j = 1 To colCount
-                result(resultRow, j) = data(i, j)
-            Next j
-            
-        End If
-        
-    Next i
-    
-    ' =========================
-    ' НОВЫЙ ФАЙЛ
-    ' =========================
-    Set wbNew = Workbooks.Add
-    Set wsNew = wbNew.Sheets(1)
-    
-    ' ШАПКА
-    wsNew.Range("A1:E1").Value = Array("ID", "Название", "Категория", "Статус", "Город")
-    
-    ' =========================
-    ' ВЫГРУЗКА В EXCEL
-    ' =========================
-    If resultRow > 0 Then
-        wsNew.Range("A2").Resize(resultRow, colCount).Value = result
-    End If
-    
-    ' =========================
-    ' СОРТИРОВКА
-    ' =========================
-    Dim lastNewRow As Long
-    lastNewRow = wsNew.Cells(wsNew.Rows.Count, 1).End(xlUp).Row
-    
-    If lastNewRow > 1 Then
-        With wsNew.Sort
-            .SortFields.Clear
-            .SortFields.Add Key:=wsNew.Range("B2:B" & lastNewRow), Order:=xlAscending
-            .SetRange wsNew.Range("A1:E" & lastNewRow)
-            .Header = xlYes
-            .Apply
-        End With
-    End If
-    
-    ' =========================
-    ' ОФОРМЛЕНИЕ
-    ' =========================
-    With wsNew.Range("A1:E" & lastNewRow)
-        .HorizontalAlignment = xlCenter
-        .VerticalAlignment = xlCenter
-        .Borders.LineStyle = xlContinuous
+    ' === ВЫБОР СТАРОГО ФАЙЛА ===
+    With Application.FileDialog(msoFileDialogFilePicker)
+        .Title = "Выбери СТАРЫЙ файл"
+        If .Show <> -1 Then Exit Sub
+        Set sourceWB = Workbooks.Open(.SelectedItems(1))
     End With
     
-    wsNew.Range("A1:E1").Font.Bold = True
-    wsNew.Columns("A:E").AutoFit
+    Set sourceWS = sourceWB.Sheets(1)
     
-    ' =========================
-    ' СОХРАНЕНИЕ
-    ' =========================
-    Dim folderPath As String
-    Dim savePath As String
+    ' === АВТО-ОПРЕДЕЛЕНИЕ ТАБЛИЦЫ ===
+    lastRow = sourceWS.Cells(Rows.Count, 1).End(xlUp).Row
+    lastCol = sourceWS.Cells(1, Columns.Count).End(xlToLeft).Column
     
-    folderPath = ThisWorkbook.Path & "\result\"
-    If Dir(folderPath, vbDirectory) = "" Then MkDir folderPath
+    Set sourceRange = sourceWS.Range(sourceWS.Cells(2, 1), sourceWS.Cells(lastRow, lastCol))
     
-    savePath = folderPath & "Report_" & statusFilter & "_" & Format(Date, "dd-mm-yyyy") & ".xlsx"
+    ' === ВЫБОР НОВОГО ФАЙЛА ===
+    With Application.FileDialog(msoFileDialogFilePicker)
+        .Title = "Выбери НОВЫЙ файл (с шапкой)"
+        If .Show <> -1 Then Exit Sub
+        Set targetWB = Workbooks.Open(.SelectedItems(1))
+    End With
     
-    wbNew.SaveAs savePath
+    Set targetWS = targetWB.Sheets(1)
     
-    wbSource.Close False
+    ' === НАХОДИМ ПЕРВУЮ ПУСТУЮ СТРОКУ ===
+    targetStartRow = targetWS.Cells(Rows.Count, 1).End(xlUp).Row + 1
     
-    MsgBox "Готово: " & savePath
-
-ExitHandler:
+    ' === ИЩЕМ КОЛОНКУ "Комментарии" ===
+    commentCol = 0
     
-    Application.ScreenUpdating = True
-    Application.Calculation = xlCalculationAutomatic
-    Application.EnableEvents = True
+    For c = 1 To targetWS.Cells(1, Columns.Count).End(xlToLeft).Column
+        If LCase(targetWS.Cells(1, c).Value) Like "*коммент*" Then
+            commentCol = c
+            Exit For
+        End If
+    Next c
+    
+    ' если нет — создаём
+    If commentCol = 0 Then
+        commentCol = targetWS.Cells(1, Columns.Count).End(xlToLeft).Column + 1
+        targetWS.Cells(1, commentCol).Value = "Комментарии"
+    End If
+    
+    ' === КОПИРУЕМ ДАННЫЕ ===
+    sourceRange.Copy
+    targetWS.Cells(targetStartRow, 1).PasteSpecial xlPasteValues
+    
+    ' === СОБИРАЕМ КОММЕНТАРИИ ===
+    For r = 1 To sourceRange.Rows.Count
+        
+        txt = ""
+        
+        For c = 1 To sourceRange.Columns.Count
+            
+            ' старые заметки
+            If Not sourceRange.Cells(r, c).Comment Is Nothing Then
+                txt = txt & sourceRange.Cells(r, c).Comment.Text & vbNewLine
+            End If
+            
+            ' новые комментарии
+            On Error Resume Next
+            If sourceRange.Cells(r, c).CommentThreaded.Count > 0 Then
+                Dim cmt As CommentThreaded
+                For Each cmt In sourceRange.Cells(r, c).CommentThreaded
+                    txt = txt & cmt.Text & vbNewLine
+                Next cmt
+            End If
+            On Error GoTo 0
+            
+        Next c
+        
+        ' записываем
+        If txt <> "" Then
+            targetWS.Cells(targetStartRow + r - 1, commentCol).Value = txt
+            targetWS.Cells(targetStartRow + r - 1, commentCol).WrapText = True
+        End If
+        
+    Next r
+    
+    MsgBox "Готово! 🚀"
 
 End Sub
