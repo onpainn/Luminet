@@ -1,38 +1,81 @@
-Sub FillCityCategory(ws As Worksheet, dict As Object, status As String, startRow As Long, startCol As Long)
-    If Not dict.exists(status) Then Exit Sub
-    Dim row As Long
-    row = startRow
-    Dim city As Variant
+Sub FillEmployeeReportFromTemplate()
+    Dim wsData As Worksheet, wsReport As Worksheet
+    Dim filePath As Variant
+    Dim lastRow As Long, i As Long
+    Dim status As String, dept As String, category As String, key As String, catGroup As String
+    Dim dict As Object, cellMap As Object
     
-    For Each city In dict(status).keys
-        ' Проверяем, что dict(status)(city) существует и это словарь
-        If TypeName(dict(status)(city)) <> "Dictionary" Then
-            ws.Cells(row, startCol - 1).Value = status
-            ws.Cells(row, startCol).Value = city
-            ws.Cells(row, startCol + 1).Value = 0
-            ws.Cells(row, startCol + 2).Value = 0
-            row = row + 1
-            GoTo NextCity
+    ' 1. Выбор файла базы
+    filePath = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx", , "Выберите файл базы")
+    If VarType(filePath) = vbBoolean And filePath = False Then Exit Sub
+    
+    ' 2. Открываем файл базы
+    Workbooks.Open filePath
+    Set wsData = ActiveSheet
+    
+    ' 3. Лист с шаблоном отчета
+    Set wsReport = ThisWorkbook.Sheets("Отчет")
+    
+    ' 4. Создаём словарь для подсчёта
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    ' 5. Настройка ячеек для вставки результатов
+    ' Ключ = "Статус - Отдел", значение = массив {Все ост, Стажер/Студент}
+    Set cellMap = CreateObject("Scripting.Dictionary")
+    ' Пример — вручную прописываем все нужные строки шаблона
+    cellMap.Add "Работает - Продажи", Array("B2", "C2")
+    cellMap.Add "Работает - Управление", Array("B3", "C3")
+    cellMap.Add "Выходной - Продажи", Array("B4", "C4")
+    cellMap.Add "Уволенные - Продажи", Array("B5", "C5")
+    cellMap.Add "Командировка - Продажи", Array("B6", "C6")
+    cellMap.Add "Работает - IT", Array("B7", "C7")
+    cellMap.Add "Выходной - IT", Array("B8", "C8")
+    ' Добавляйте остальные вручную под ваш шаблон
+    
+    ' 6. Находим последнюю строку базы
+    lastRow = wsData.Cells(wsData.Rows.Count, 2).End(xlUp).Row
+    
+    ' 7. Проходим все строки базы
+    For i = 2 To lastRow
+        category = LCase(Trim(wsData.Cells(i, 2).Value)) ' Колонка Категория
+        status = Trim(wsData.Cells(i, 10).Value)         ' Колонка Статус
+        dept = Trim(wsData.Cells(i, 11).Value)           ' Колонка Отдел
+        
+        ' Игнорируем "Другой офис"
+        If category = "другой офис" Then GoTo NextRow
+        
+        ' Определяем группу категорий
+        Select Case category
+            Case "стажер", "студент"
+                catGroup = "Intern" ' объединяем обе категории
+            Case Else
+                catGroup = "Other"
+        End Select
+        
+        ' Ключ словаря = статус + отдел
+        key = status & " - " & dept
+        
+        ' Создаём словарь для ключа, если ещё нет
+        If Not dict.exists(key) Then
+            dict.Add key, CreateObject("Scripting.Dictionary")
+            dict(key).Add "Other", 0
+            dict(key).Add "Intern", 0
         End If
         
-        ws.Cells(row, startCol - 1).Value = status
-        ws.Cells(row, startCol).Value = city
+        ' Увеличиваем счетчик
+        dict(key)(catGroup) = dict(key)(catGroup) + 1
         
-        ' Остальное
-        If dict(status)(city).exists("OTHER") Then
-            ws.Cells(row, startCol + 1).Value = dict(status)(city)("OTHER")
-        Else
-            ws.Cells(row, startCol + 1).Value = 0
+NextRow:
+    Next i
+    
+    ' 8. Вставляем значения в конкретные ячейки шаблона
+    Dim k As Variant
+    For Each k In dict.keys
+        If cellMap.exists(k) Then
+            wsReport.Range(cellMap(k)(0)).Value = dict(k)("Other")   ' Все ост
+            wsReport.Range(cellMap(k)(1)).Value = dict(k)("Intern")  ' Стажер/Студент
         End If
-        
-        ' Ноутбуки + ПК
-        If dict(status)(city).exists("PC") Then
-            ws.Cells(row, startCol + 2).Value = dict(status)(city)("PC")
-        Else
-            ws.Cells(row, startCol + 2).Value = 0
-        End If
-        
-        row = row + 1
-NextCity:
-    Next city
+    Next k
+    
+    MsgBox "Отчет заполнен в шаблон!"
 End Sub
