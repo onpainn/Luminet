@@ -1,155 +1,5 @@
-Option Explicit
-
-' === ОСНОВНОЙ МАКРОС ===
-Sub CreateReport()
-
-    Dim wbSource As Workbook
-    Dim wsData As Worksheet
-    Dim wbTemplate As Workbook
-    Dim wsReport As Worksheet
-    Dim filePath As String
-    Dim templatePath As String
-    
-    ' === Автоматический выбор файлов в папке с кнопкой ===
-    filePath = ThisWorkbook.Path & "\База.xlsx"
-    templatePath = ThisWorkbook.Path & "\Шаблон.xlsx"
-    
-    ' === Открываем базу ===
-    Set wbSource = Workbooks.Open(filePath)
-    Set wsData = wbSource.Sheets(1)
-    
-    Dim lastRow As Long
-    lastRow = wsData.Cells(wsData.Rows.Count, 1).End(xlUp).Row
-    
-    Dim statusCounts As Object
-    Set statusCounts = CreateObject("Scripting.Dictionary")
-    
-    Dim i As Long
-    Dim status As String, category As String, city As String
-    Dim catGroup As String
-    
-    ' === Обработка данных ===
-    For i = 2 To lastRow
-        status = CleanText(wsData.Cells(i, 1).Value)
-        category = CleanText(wsData.Cells(i, 2).Value)
-        city = Trim(wsData.Cells(i, 3).Value)
-        
-        ' Пропускаем строки с категорией "выведены с продаж"
-        If category <> "выведены с продаж" Then
-            
-            ' Разбивка на группы
-            If category = "ноутбуки" Or category = "компьютеры" Then
-                catGroup = "PC"
-            Else
-                catGroup = "OTHER"
-            End If
-            
-            ' === Статусы с городами ===
-            If IsCityStatus(status) Then
-                If city <> "" Then
-                    If Not statusCounts.exists(status) Then
-                        statusCounts.Add status, CreateObject("Scripting.Dictionary")
-                    End If
-                    If Not statusCounts(status).exists(city) Then
-                        statusCounts(status).Add city, CreateObject("Scripting.Dictionary")
-                    End If
-                    If statusCounts(status)(city).exists(catGroup) Then
-                        statusCounts(status)(city)(catGroup) = statusCounts(status)(city)(catGroup) + 1
-                    Else
-                        statusCounts(status)(city).Add catGroup, 1
-                    End If
-                End If
-            Else
-                ' Обычные статусы без городов
-                If Not statusCounts.exists(status) Then
-                    statusCounts.Add status, CreateObject("Scripting.Dictionary")
-                End If
-                If statusCounts(status).exists(catGroup) Then
-                    statusCounts(status)(catGroup) = statusCounts(status)(catGroup) + 1
-                Else
-                    statusCounts(status).Add catGroup, 1
-                End If
-            End If
-        End If
-    Next i
-    
-    wbSource.Close False
-    
-    ' === Открытие шаблона ===
-    Set wbTemplate = Workbooks.Open(templatePath)
-    Set wsReport = wbTemplate.Sheets(1)
-    
-    ' === Заполнение отчета ===
-    
-    ' 1) В наличии (развернуть по городам)
-    FillCityCategory wsReport, statusCounts, "в наличии", 3, 2
-    
-    ' 2) На ремонте (развернуть по городам)
-    FillCityCategory wsReport, statusCounts, "на ремонте", 12, 2
-    
-    ' 3) Остальные статусы (суммарно)
-    wsReport.Range("B1").Value = GetValue(statusCounts, "отсутствует", "OTHER")
-    wsReport.Range("C1").Value = GetValue(statusCounts, "отсутствует", "PC")
-    
-    wsReport.Range("B2").Value = GetValue(statusCounts, "на складе", "OTHER")
-    wsReport.Range("C2").Value = GetValue(statusCounts, "на складе", "PC")
-    
-    wsReport.Range("B3").Value = GetValue(statusCounts, "в пути", "OTHER")
-    wsReport.Range("C3").Value = GetValue(statusCounts, "в пути", "PC")
-    
-    ' === Сохранение отчета ===
-    Dim savePath As String
-    savePath = ThisWorkbook.Path & "\Отчет_" & Format(Date, "YYYY-MM-DD") & ".xlsx"
-    wbTemplate.SaveAs savePath
-    wbTemplate.Close
-    
-    MsgBox "Отчет готов: " & savePath
-End Sub
-
-' === Вспомогательные функции ===
-
-' Очистка текста (пробелы, регистр)
-Function CleanText(txt As String) As String
-    txt = Trim(txt)
-    txt = Replace(txt, Chr(160), " ")
-    txt = Application.WorksheetFunction.Trim(txt)
-    txt = LCase(txt)
-    CleanText = txt
-End Function
-
-' Проверка, нужно ли считать по городам
-Function IsCityStatus(status As String) As Boolean
-    Select Case status
-        Case "в наличии", "на ремонте"
-            IsCityStatus = True
-        Case Else
-            IsCityStatus = False
-    End Select
-End Function
-
-' Получение значения по статусу и категории
-Function GetValue(dict As Object, status As String, key As String) As Long
-    If dict.exists(status) Then
-        If dict(status).exists(key) Then
-            GetValue = dict(status)(key)
-        Else
-            GetValue = 0
-        End If
-    Else
-        GetValue = 0
-    End If
-End Function
-
-' Заполнение города и категорий в шаблон
-Sub FillCityCategory(ws As Worksheet, dict As Object, status As String, startRow As Long, startCol As Long)
-    If Not dict.exists(status) Then Exit Sub
-    Dim row As Long
-    row = startRow
-    Dim city As Variant
-    For Each city In dict(status).keys
-        ws.Cells(row, startCol - 1).Value = status   ' Статус в колонке слева
-        ws.Cells(row, startCol).Value = city         ' Город
-        ' Остальное
+If dict.exists(status) Then
+    If dict(status).exists(city) Then
         If dict(status)(city).exists("OTHER") Then
             ws.Cells(row, startCol + 1).Value = dict(status)(city)("OTHER")
         Else
@@ -161,6 +11,11 @@ Sub FillCityCategory(ws As Worksheet, dict As Object, status As String, startRow
         Else
             ws.Cells(row, startCol + 2).Value = 0
         End If
-        row = row + 1
-    Next city
-End Sub
+    Else
+        ws.Cells(row, startCol + 1).Value = 0
+        ws.Cells(row, startCol + 2).Value = 0
+    End If
+Else
+    ws.Cells(row, startCol + 1).Value = 0
+    ws.Cells(row, startCol + 2).Value = 0
+End If
