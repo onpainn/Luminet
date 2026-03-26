@@ -1,21 +1,38 @@
-If dict.exists(status) Then
-    If dict(status).exists(city) Then
+Sub FillCityCategory(ws As Worksheet, dict As Object, status As String, startRow As Long, startCol As Long)
+    If Not dict.exists(status) Then Exit Sub
+    Dim row As Long
+    row = startRow
+    Dim city As Variant
+    
+    For Each city In dict(status).keys
+        ' Проверяем, что dict(status)(city) существует и это словарь
+        If TypeName(dict(status)(city)) <> "Dictionary" Then
+            ws.Cells(row, startCol - 1).Value = status
+            ws.Cells(row, startCol).Value = city
+            ws.Cells(row, startCol + 1).Value = 0
+            ws.Cells(row, startCol + 2).Value = 0
+            row = row + 1
+            GoTo NextCity
+        End If
+        
+        ws.Cells(row, startCol - 1).Value = status
+        ws.Cells(row, startCol).Value = city
+        
+        ' Остальное
         If dict(status)(city).exists("OTHER") Then
             ws.Cells(row, startCol + 1).Value = dict(status)(city)("OTHER")
         Else
             ws.Cells(row, startCol + 1).Value = 0
         End If
+        
         ' Ноутбуки + ПК
         If dict(status)(city).exists("PC") Then
             ws.Cells(row, startCol + 2).Value = dict(status)(city)("PC")
         Else
             ws.Cells(row, startCol + 2).Value = 0
         End If
-    Else
-        ws.Cells(row, startCol + 1).Value = 0
-        ws.Cells(row, startCol + 2).Value = 0
-    End If
-Else
-    ws.Cells(row, startCol + 1).Value = 0
-    ws.Cells(row, startCol + 2).Value = 0
-End If
+        
+        row = row + 1
+NextCity:
+    Next city
+End Sub
