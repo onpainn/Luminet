@@ -24,10 +24,6 @@ Sub CreateReport()
     Dim statusCounts As Object
     Set statusCounts = CreateObject("Scripting.Dictionary")
     
-    ' Категория, которую игнорируем полностью
-    Dim excludeCategory As String
-    excludeCategory = "аксессуары"
-    
     Dim i As Long
     Dim status As String, category As String, city As String
     Dim catGroup As String
@@ -35,13 +31,18 @@ Sub CreateReport()
     ' === Обработка данных ===
     For i = 2 To lastRow
         status = CleanText(wsData.Cells(i, 1).Value)
-        category = wsData.Cells(i, 2).Value
+        category = CleanText(wsData.Cells(i, 2).Value)
         city = Trim(wsData.Cells(i, 3).Value)
         
-        ' Пропускаем строки с исключаемой категорией и с категорией "в резерве"
-        If CleanText(category) <> excludeCategory And CleanText(category) <> "в резерве" Then
+        ' Пропускаем строки с категорией "выведены с продаж"
+        If category <> "выведены с продаж" Then
             
-            catGroup = GetCategoryGroup(category)
+            ' Разбивка на группы
+            If category = "ноутбуки" Or category = "компьютеры" Then
+                catGroup = "PC"
+            Else
+                catGroup = "OTHER"
+            End If
             
             ' === Статусы с городами ===
             If IsCityStatus(status) Then
@@ -58,8 +59,8 @@ Sub CreateReport()
                         statusCounts(status)(city).Add catGroup, 1
                     End If
                 End If
-            ' === Обычные статусы ===
             Else
+                ' Обычные статусы
                 If Not statusCounts.exists(status) Then
                     statusCounts.Add status, CreateObject("Scripting.Dictionary")
                 End If
@@ -106,7 +107,7 @@ End Sub
 
 ' === Вспомогательные функции (всё в конце) ===
 
-' Очистка текста
+' Очистка текста (пробелы, регистр)
 Function CleanText(txt As String) As String
     txt = Trim(txt)
     txt = Replace(txt, Chr(160), " ")
