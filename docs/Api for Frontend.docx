@@ -60,7 +60,7 @@ Sub CreateReport()
                     End If
                 End If
             Else
-                ' Обычные статусы
+                ' Обычные статусы без городов
                 If Not statusCounts.exists(status) Then
                     statusCounts.Add status, CreateObject("Scripting.Dictionary")
                 End If
@@ -79,21 +79,23 @@ Sub CreateReport()
     Set wbTemplate = Workbooks.Open(templatePath)
     Set wsReport = wbTemplate.Sheets(1)
     
-    ' === Заполнение отчетов ===
-    ' В наличии
-    FillCityCategory wsReport, statusCounts, "в наличии", 4, 1
-    ' В резерве
-    FillCityCategory wsReport, statusCounts, "в резерве", 4, 5
+    ' === Заполнение отчета ===
     
-    ' Остальные статусы
-    wsReport.Range("B10").Value = GetValue(statusCounts, "отсутствует", "OTHER")
-    wsReport.Range("C10").Value = GetValue(statusCounts, "отсутствует", "PC")
+    ' 1) В наличии (развернуть по городам)
+    FillCityCategory wsReport, statusCounts, "в наличии", 3, 2
     
-    wsReport.Range("B11").Value = GetValue(statusCounts, "в ожидании", "OTHER")
-    wsReport.Range("C11").Value = GetValue(statusCounts, "в ожидании", "PC")
+    ' 2) На ремонте (развернуть по городам)
+    FillCityCategory wsReport, statusCounts, "на ремонте", 12, 2
     
-    wsReport.Range("B12").Value = GetValue(statusCounts, "на ремонте", "OTHER")
-    wsReport.Range("C12").Value = GetValue(statusCounts, "на ремонте", "PC")
+    ' 3) Остальные статусы (суммарно)
+    wsReport.Range("B1").Value = GetValue(statusCounts, "отсутствует", "OTHER")
+    wsReport.Range("C1").Value = GetValue(statusCounts, "отсутствует", "PC")
+    
+    wsReport.Range("B2").Value = GetValue(statusCounts, "на складе", "OTHER")
+    wsReport.Range("C2").Value = GetValue(statusCounts, "на складе", "PC")
+    
+    wsReport.Range("B3").Value = GetValue(statusCounts, "в пути", "OTHER")
+    wsReport.Range("C3").Value = GetValue(statusCounts, "в пути", "PC")
     
     ' === Сохранение отчета ===
     Dim savePath As String
@@ -104,8 +106,7 @@ Sub CreateReport()
     MsgBox "Отчет готов: " & savePath
 End Sub
 
-
-' === Вспомогательные функции (всё в конце) ===
+' === Вспомогательные функции ===
 
 ' Очистка текста (пробелы, регистр)
 Function CleanText(txt As String) As String
@@ -116,20 +117,10 @@ Function CleanText(txt As String) As String
     CleanText = txt
 End Function
 
-' Определение группы категории
-Function GetCategoryGroup(category As String) As String
-    category = CleanText(category)
-    If category = "ноутбуки" Or category = "компьютеры" Then
-        GetCategoryGroup = "PC"
-    Else
-        GetCategoryGroup = "OTHER"
-    End If
-End Function
-
 ' Проверка, нужно ли считать по городам
 Function IsCityStatus(status As String) As Boolean
     Select Case status
-        Case "в наличии", "в резерве"
+        Case "в наличии", "на ремонте"
             IsCityStatus = True
         Case Else
             IsCityStatus = False
@@ -156,7 +147,8 @@ Sub FillCityCategory(ws As Worksheet, dict As Object, status As String, startRow
     row = startRow
     Dim city As Variant
     For Each city In dict(status).keys
-        ws.Cells(row, startCol).Value = city
+        ws.Cells(row, startCol - 1).Value = status   ' Статус в колонке слева
+        ws.Cells(row, startCol).Value = city         ' Город
         ' Остальное
         If dict(status)(city).exists("OTHER") Then
             ws.Cells(row, startCol + 1).Value = dict(status)(city)("OTHER")
