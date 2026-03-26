@@ -1,95 +1,212 @@
-Sub FullAuto_Copy_WithComments_NewLine()
+Option Explicit
 
-    Dim sourceWB As Workbook, targetWB As Workbook
-    Dim sourceWS As Worksheet, targetWS As Worksheet
+' === ОЧИСТКА ТЕКСТА ===
+Function CleanText(txt As String) As String
+    txt = Trim(txt)
+    txt = Replace(txt, Chr(160), " ")
+    txt = Application.WorksheetFunction.Trim(txt)
+    txt = LCase(txt)
+    CleanText = txt
+End Function
+
+' === ГРУППА КАТЕГОРИЙ ===
+Function GetCategoryGroup(category As String) As String
     
-    Dim sourceRange As Range
-    Dim lastRow As Long, lastCol As Long
-    Dim targetStartRow As Long
-    Dim commentCol As Long
+    category = CleanText(category)
     
-    Dim r As Long, c As Long
-    Dim txt As String
-    
-    ' === ВЫБОР СТАРОГО ФАЙЛА ===
-    With Application.FileDialog(msoFileDialogFilePicker)
-        .Title = "Выбери СТАРЫЙ файл"
-        If .Show <> -1 Then Exit Sub
-        Set sourceWB = Workbooks.Open(.SelectedItems(1))
-    End With
-    
-    Set sourceWS = sourceWB.Sheets(1)
-    
-    ' === АВТО-ОПРЕДЕЛЕНИЕ ТАБЛИЦЫ ===
-    lastRow = sourceWS.Cells(Rows.Count, 1).End(xlUp).Row
-    lastCol = sourceWS.Cells(1, Columns.Count).End(xlToLeft).Column
-    
-    Set sourceRange = sourceWS.Range(sourceWS.Cells(2, 1), sourceWS.Cells(lastRow, lastCol))
-    
-    ' === ВЫБОР НОВОГО ФАЙЛА ===
-    With Application.FileDialog(msoFileDialogFilePicker)
-        .Title = "Выбери НОВЫЙ файл (с шапкой)"
-        If .Show <> -1 Then Exit Sub
-        Set targetWB = Workbooks.Open(.SelectedItems(1))
-    End With
-    
-    Set targetWS = targetWB.Sheets(1)
-    
-    ' === НАХОДИМ ПЕРВУЮ ПУСТУЮ СТРОКУ ===
-    targetStartRow = targetWS.Cells(Rows.Count, 1).End(xlUp).Row + 1
-    
-    ' === ИЩЕМ КОЛОНКУ "Комментарии" ===
-    commentCol = 0
-    
-    For c = 1 To targetWS.Cells(1, Columns.Count).End(xlToLeft).Column
-        If LCase(targetWS.Cells(1, c).Value) Like "*коммент*" Then
-            commentCol = c
-            Exit For
-        End If
-    Next c
-    
-    ' если нет — создаём
-    If commentCol = 0 Then
-        commentCol = targetWS.Cells(1, Columns.Count).End(xlToLeft).Column + 1
-        targetWS.Cells(1, commentCol).Value = "Комментарии"
+    If category = "ноутбуки" Or category = "компьютеры" Then
+        GetCategoryGroup = "PC"
+    Else
+        GetCategoryGroup = "OTHER"
     End If
     
-    ' === КОПИРУЕМ ДАННЫЕ ===
-    sourceRange.Copy
-    targetWS.Cells(targetStartRow, 1).PasteSpecial xlPasteValues
+End Function
+
+' === СТАТУСЫ С ГОРОДАМИ ===
+Function IsCityStatus(status As String) As Boolean
     
-    ' === СОБИРАЕМ КОММЕНТАРИИ ===
-    For r = 1 To sourceRange.Rows.Count
+    Select Case status
+        Case "в наличии", "в резерве"
+            IsCityStatus = True
+        Case Else
+            IsCityStatus = False
+    End Select
+    
+End Function
+
+' === ПОЛУЧЕНИЕ ЗНАЧЕНИЯ ===
+Function GetValue(dict As Object, status As String, key As String) As Long
+    
+    If dict.exists(status) Then
+        If dict(status).exists(key) Then
+            GetValue = dict(status)(key)
+        Else
+            GetValue = 0
+        End If
+    Else
+        GetValue = 0
+    End If
+    
+End Function
+
+' === ВЫВОД ГОРОДОВ С КАТЕГОРИЯМИ ===
+Sub FillCityCategory(ws As Worksheet, dict As Object, status As String, startRow As Long, startCol As Long)
+
+    If Not dict.exists(status) Then Exit Sub
+    
+    Dim row As Long
+    row = startRow
+    
+    Dim city As Variant
+    
+    For Each city In dict(status).keys
         
-        txt = ""
+        ws.Cells(row, startCol).Value = city
         
-        For c = 1 To sourceRange.Columns.Count
-            
-            ' старые заметки
-            If Not sourceRange.Cells(r, c).Comment Is Nothing Then
-                txt = txt & sourceRange.Cells(r, c).Comment.Text & vbNewLine
-            End If
-            
-            ' новые комментарии
-            On Error Resume Next
-            If sourceRange.Cells(r, c).CommentThreaded.Count > 0 Then
-                Dim cmt As CommentThreaded
-                For Each cmt In sourceRange.Cells(r, c).CommentThreaded
-                    txt = txt & cmt.Text & vbNewLine
-                Next cmt
-            End If
-            On Error GoTo 0
-            
-        Next c
-        
-        ' записываем
-        If txt <> "" Then
-            targetWS.Cells(targetStartRow + r - 1, commentCol).Value = txt
-            targetWS.Cells(targetStartRow + r - 1, commentCol).WrapText = True
+        ' Остальное
+        If dict(status)(city).exists("OTHER") Then
+            ws.Cells(row, startCol + 1).Value = dict(status)(city)("OTHER")
+        Else
+            ws.Cells(row, startCol + 1).Value = 0
         End If
         
-    Next r
+        ' Ноутбуки + ПК
+        If dict(status)(city).exists("PC") Then
+            ws.Cells(row, startCol + 2).Value = dict(status)(city)("PC")
+        Else
+            ws.Cells(row, startCol + 2).Value = 0
+        End If
+        
+        row = row + 1
+        
+    Next city
+
+End Sub
+
+' === ОСНОВНОЙ МАКРОС ===
+Sub CreateReport()
+
+    Dim wbSource As Workbook
+    Dim wsData As Worksheet
     
-    MsgBox "Готово! 🚀"
+    Dim wbTemplate As Workbook
+    Dim wsReport As Worksheet
+    
+    Dim filePath As String
+    
+    ' === ВЫБОР ФАЙЛА ===
+    With Application.FileDialog(msoFileDialogFilePicker)
+        .Title = "Выберите файл с базой"
+        .Filters.Clear
+        .Filters.Add "Excel файлы", "*.xlsx; *.xlsm; *.xls"
+        
+        If .Show <> -1 Then Exit Sub
+        
+        filePath = .SelectedItems(1)
+    End With
+    
+    Set wbSource = Workbooks.Open(filePath)
+    Set wsData = wbSource.Sheets(1)
+    
+    Dim lastRow As Long
+    lastRow = wsData.Cells(wsData.Rows.Count, 1).End(xlUp).Row
+    
+    Dim statusCounts As Object
+    Set statusCounts = CreateObject("Scripting.Dictionary")
+    
+    ' === НАСТРОЙКИ ===
+    Dim excludeCategory As String
+    excludeCategory = "аксессуары"
+    
+    Dim i As Long
+    Dim status As String, category As String, city As String
+    
+    ' === ОБРАБОТКА ДАННЫХ ===
+    For i = 2 To lastRow
+        
+        status = CleanText(wsData.Cells(i, 1).Value)
+        category = wsData.Cells(i, 2).Value
+        city = Trim(wsData.Cells(i, 3).Value)
+        
+        If CleanText(category) <> excludeCategory Then
+            
+            Dim catGroup As String
+            catGroup = GetCategoryGroup(category)
+            
+            ' === СТАТУСЫ С ГОРОДАМИ ===
+            If IsCityStatus(status) Then
+                
+                If city <> "" Then
+                    
+                    If Not statusCounts.exists(status) Then
+                        statusCounts.Add status, CreateObject("Scripting.Dictionary")
+                    End If
+                    
+                    If Not statusCounts(status).exists(city) Then
+                        statusCounts(status).Add city, CreateObject("Scripting.Dictionary")
+                    End If
+                    
+                    If statusCounts(status)(city).exists(catGroup) Then
+                        statusCounts(status)(city)(catGroup) = statusCounts(status)(city)(catGroup) + 1
+                    Else
+                        statusCounts(status)(city).Add catGroup, 1
+                    End If
+                    
+                End If
+            
+            ' === ОБЫЧНЫЕ СТАТУСЫ ===
+            Else
+                
+                If Not statusCounts.exists(status) Then
+                    statusCounts.Add status, CreateObject("Scripting.Dictionary")
+                End If
+                
+                If statusCounts(status).exists(catGroup) Then
+                    statusCounts(status)(catGroup) = statusCounts(status)(catGroup) + 1
+                Else
+                    statusCounts(status).Add catGroup, 1
+                End If
+                
+            End If
+            
+        End If
+        
+    Next i
+    
+    wbSource.Close False
+    
+    ' === ОТКРЫВАЕМ ШАБЛОН ===
+    Dim templatePath As String
+    templatePath = ThisWorkbook.Path & "\Шаблон.xlsx"
+    
+    Set wbTemplate = Workbooks.Open(templatePath)
+    Set wsReport = wbTemplate.Sheets(1)
+    
+    ' === ВЫВОД ===
+    
+    ' В наличии
+    FillCityCategory wsReport, statusCounts, "в наличии", 4, 1
+    
+    ' В резерве
+    FillCityCategory wsReport, statusCounts, "в резерве", 4, 5
+    
+    ' Остальные статусы
+    wsReport.Range("B10").Value = GetValue(statusCounts, "отсутствует", "OTHER")
+    wsReport.Range("C10").Value = GetValue(statusCounts, "отсутствует", "PC")
+    
+    wsReport.Range("B11").Value = GetValue(statusCounts, "в ожидании", "OTHER")
+    wsReport.Range("C11").Value = GetValue(statusCounts, "в ожидании", "PC")
+    
+    wsReport.Range("B12").Value = GetValue(statusCounts, "на ремонте", "OTHER")
+    wsReport.Range("C12").Value = GetValue(statusCounts, "на ремонте", "PC")
+    
+    ' === СОХРАНЕНИЕ ===
+    Dim savePath As String
+    savePath = ThisWorkbook.Path & "\Отчет_" & Format(Date, "YYYY-MM-DD") & ".xlsx"
+    
+    wbTemplate.SaveAs savePath
+    wbTemplate.Close
+    
+    MsgBox "Отчет готов: " & savePath
 
 End Sub
