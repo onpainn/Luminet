@@ -1,105 +1,25 @@
-Sub CreateReportFromExternalTemplate()
-
-    Dim wbData As Workbook, wbTemplate As Workbook, wbNew As Workbook
-    Dim wsData As Worksheet, wsReport As Worksheet
-    Dim filePath As Variant, templatePath As String, savePath As String
+If LCase(status) = "работает" Then
     
-    Dim lastRow As Long, i As Long
-    Dim status As String, dept As String, category As String
-    Dim key As String, catGroup As String
+    Dim city As String
+    Dim cityKey As String
     
-    Dim dict As Object, cellMap As Object
+    city = LCase(Trim(wsData.Cells(i, 1).Value))
     
-    ' === 1. Выбор базы ===
-    filePath = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx", , "Выберите файл базы")
-    If VarType(filePath) = vbBoolean And filePath = False Then Exit Sub
+    ' Москва или регионы
+    Select Case city
+        Case "москва", "химки", "мытищи", "люберцы"
+            cityKey = dept & " Москва"
+        Case Else
+            cityKey = dept & " Регионы"
+    End Select
     
-    Set wbData = Workbooks.Open(filePath)
-    Set wsData = wbData.Sheets(1)
+    ' Словарь
+    If Not dict.exists(cityKey) Then
+        dict.Add cityKey, CreateObject("Scripting.Dictionary")
+        dict(cityKey).Add "Target", 0
+        dict(cityKey).Add "Intern", 0
+    End If
     
-    ' === 2. Путь к шаблону (лежит рядом с макросом) ===
-    templatePath = ThisWorkbook.Path & "\Шаблон.xlsx"
+    dict(cityKey)(catGroup) = dict(cityKey)(catGroup) + 1
     
-    ' === 3. Открываем шаблон ===
-    Set wbTemplate = Workbooks.Open(templatePath)
-    
-    ' === 4. Делаем копию (это и будет новый файл) ===
-    wbTemplate.Sheets(1).Copy
-    Set wbNew = ActiveWorkbook
-    Set wsReport = wbNew.Sheets(1)
-    
-    ' Закрываем оригинальный шаблон
-    wbTemplate.Close False
-    
-    ' === 5. Словарь ===
-    Set dict = CreateObject("Scripting.Dictionary")
-    
-    ' === 6. Карта ячеек (НАСТРОИТЬ ПОД СЕБЯ!) ===
-    Set cellMap = CreateObject("Scripting.Dictionary")
-    
-    ' С отделами
-    cellMap.Add "Работает - Продажи", Array("B2", "C2")
-    cellMap.Add "Работает - Управление", Array("B3", "C3")
-    
-    ' Без отделов
-    cellMap.Add "Выходной", Array("B10", "C10")
-    cellMap.Add "Отпуск", Array("B11", "C11")
-    
-    lastRow = wsData.Cells(wsData.Rows.Count, 2).End(xlUp).Row
-    
-    ' === 7. Обработка данных ===
-    For i = 2 To lastRow
-        
-        category = LCase(Trim(wsData.Cells(i, 2).Value))
-        status = Trim(wsData.Cells(i, 10).Value)
-        dept = Trim(wsData.Cells(i, 11).Value)
-        
-        ' Игнорируем
-        If category = "другой офис" Then GoTo NextRow
-        
-        ' Категории
-        Select Case category
-            Case "стажер", "студент"
-                catGroup = "Intern"
-            Case Else
-                catGroup = "Other"
-        End Select
-        
-        ' Логика статусов
-        Select Case LCase(status)
-            Case "выходной", "отпуск", "командировка"
-                key = status
-            Case Else
-                key = status & " - " & dept
-        End Select
-        
-        ' Словарь
-        If Not dict.exists(key) Then
-            dict.Add key, CreateObject("Scripting.Dictionary")
-            dict(key).Add "Other", 0
-            dict(key).Add "Intern", 0
-        End If
-        
-        dict(key)(catGroup) = dict(key)(catGroup) + 1
-        
-NextRow:
-    Next i
-    
-    ' === 8. Заполняем шаблон ===
-    Dim k As Variant
-    For Each k In dict.keys
-        If cellMap.exists(k) Then
-            wsReport.Range(cellMap(k)(0)).Value = dict(k)("Other")
-            wsReport.Range(cellMap(k)(1)).Value = dict(k)("Intern")
-        End If
-    Next k
-    
-    ' === 9. Сохраняем новый файл ===
-    savePath = ThisWorkbook.Path & "\Отчет_" & Format(Now, "dd.mm.yyyy_hh.mm") & ".xlsx"
-    wbNew.SaveAs savePath
-    
-    MsgBox "Отчет создан: " & savePath
-    
-    wbData.Close False
-
-End Sub
+End If
