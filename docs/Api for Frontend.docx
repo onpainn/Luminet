@@ -93,3 +93,48 @@ Sub СохранитьДанныеБыстро()
     
     MsgBox "Данные успешно сохранены быстро!"
 End Sub
+
+
+
+
+Sub ДобавитьПользователей()
+    Dim wsBase As Worksheet, wsEdit As Worksheet
+    Dim lastRowBase As Long, lastRowEdit As Long
+    Dim i As Long, j As Long
+    Dim ID As Variant
+    Dim newRow As Long
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    Set wsBase = ThisWorkbook.Sheets(1)
+    Set wsEdit = ThisWorkbook.Sheets(3)
+    
+    ' Последние строки
+    lastRowBase = wsBase.Cells(wsBase.Rows.Count, 4).End(xlUp).Row
+    lastRowEdit = wsEdit.Cells(wsEdit.Rows.Count, 4).End(xlUp).Row
+    
+    newRow = lastRowBase + 1
+    
+    ' Проходим по новым данным
+    For i = 10 To lastRowEdit
+        ID = wsEdit.Cells(i, 4).Value
+        
+        If ID <> "" Then
+            ' Просто добавляем строку
+            For j = 1 To 27
+                wsBase.Cells(newRow, j).Value = wsEdit.Cells(i, j).Value
+            Next j
+            
+            newRow = newRow + 1
+        End If
+    Next i
+    
+    ' Очистка формы
+    wsEdit.Rows("10:" & wsEdit.Rows.Count).ClearContents
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    
+    MsgBox "Новые сотрудники добавлены!"
+End Sub
