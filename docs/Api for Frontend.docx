@@ -1,144 +1,95 @@
-Sub CreateProfessionalReport()
-
-    ' === 0. Переменные ===
-    Dim wbData As Workbook, wsData As Worksheet
-    Dim wbNew As Workbook, wsReport As Worksheet
-    Dim filePath As Variant, templatePath As String, savePath As String
-    Dim lastRow As Long, i As Long
-    Dim status As String, dept As String, category As String
-    Dim catGroup As String, key As String
+Sub ПоказатьДанныеБыстро()
+    Dim wsBase As Worksheet, wsEdit As Worksheet
+    Dim baseArr As Variant, editArr As Variant
+    Dim dict As Object
+    Dim lastRowBase As Long, lastRowEdit As Long
+    Dim i As Long, j As Long
+    Dim ID As Variant
     
-    Dim dict As Object, dictCity As Object, cellMap As Object
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
     
-    ' === 1. Выбор базы данных ===
-    filePath = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx", , "Выберите файл базы")
-    If VarType(filePath) = vbBoolean And filePath = False Then Exit Sub
-    Set wbData = Workbooks.Open(filePath)
-    Set wsData = wbData.Sheets(1)
+    Set wsBase = ThisWorkbook.Sheets(1)
+    Set wsEdit = ThisWorkbook.Sheets(3)
     
-    ' === 2. Открытие шаблона и создание нового отчёта ===
-    templatePath = ThisWorkbook.Path & "\Шаблон.xlsx" ' шаблон рядом с макросом
-    Set wbNew = Workbooks.Open(templatePath)
-    Set wsReport = wbNew.Sheets(1)
+    ' Найдем последнюю строку
+    lastRowBase = wsBase.Cells(wsBase.Rows.Count, 4).End(xlUp).Row
+    lastRowEdit = wsEdit.Cells(wsEdit.Rows.Count, 4).End(xlUp).Row
     
-    ' === 3. Словари для подсчётов ===
-    Set dict = CreateObject("Scripting.Dictionary")     ' основной отчёт
-    Set dictCity = CreateObject("Scripting.Dictionary") ' подсчёт городов
-    Set cellMap = CreateObject("Scripting.Dictionary")  ' сопоставление ключей -> ячеек
+    ' Считываем всю базу в массив
+    baseArr = wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, 27)).Value
     
-    ' === 4. Настройка cellMap ===
-    ' Основной отчёт: B/C
-    cellMap.Add "Работает - Отдел продаж", Array("B2", "C2")
-    cellMap.Add "Работает - Отдел инвестиций", Array("B3", "C3")
-    cellMap.Add "Выходной", Array("B10", "C10")
-    cellMap.Add "Отпуск", Array("B11", "C11")
-    cellMap.Add "Уволенные", Array("B12", "C12")
-    
-    ' Города: G/I
-    cellMap.Add "Отдел продаж СписокГородов", "G2"
-    cellMap.Add "Отдел продаж Остальные", "I2"
-    cellMap.Add "Отдел инвестиций СписокГородов", "G3"
-    cellMap.Add "Отдел инвестиций Остальные", "I3"
-    
-    ' === 5. Список городов для первой колонки ===
-    Dim CustomCities As Variant
-    CustomCities = Array("Москва", "Санкт-Петербург", "Ростов-на-Дону") ' задаёшь сам
-    
-    ' === 6. Цикл по строкам базы ===
-    lastRow = wsData.Cells(wsData.Rows.Count, 2).End(xlUp).Row
-    For i = 2 To lastRow
-        
-        category = LCase(Trim(wsData.Cells(i, 2).Value)) ' колонка Категория
-        status = Trim(wsData.Cells(i, 10).Value)         ' колонка Статус
-        
-        ' Игнорируем "Другой офис"
-        If category = "другой офис" Then GoTo NextRow
-        
-        ' Определяем отдел (уволенные из 12 колонки)
-        If InStr(LCase(status), "увол") > 0 Then
-            dept = Trim(wsData.Cells(i, 12).Value)
-        Else
-            dept = Trim(wsData.Cells(i, 11).Value)
-        End If
-        dept = StrConv(dept, vbProperCase)
-        
-        ' === Категории: объединяем "стажер" + "студент" ===
-        Select Case category
-            Case "стажер", "студент"
-                catGroup = "Intern"
-            Case Else
-                catGroup = "Target"
-        End Select
-        
-        ' === Ключ для основного отчёта ===
-        Select Case LCase(status)
-            Case "выходной", "отпуск", "командировка", "уволен"
-                key = status
-            Case Else
-                key = status & " - " & dept
-        End Select
-        
-        ' === Основной отчёт ===
-        If Not dict.exists(key) Then
-            dict.Add key, CreateObject("Scripting.Dictionary")
-            dict(key).Add "Target", 0
-            dict(key).Add "Intern", 0
-        End If
-        dict(key)(catGroup) = dict(key)(catGroup) + 1
-        
-        ' === Подсчёт городов (только для "Работает") ===
-        If InStr(LCase(status), "работает") > 0 Then
-            Dim city As String, cityKey As String
-            city = LCase(Trim(wsData.Cells(i, 1).Value)) ' колонка город
-            
-            ' Проверка, есть ли город в CustomCities
-            Dim j As Long, found As Boolean
-            found = False
-            For j = LBound(CustomCities) To UBound(CustomCities)
-                If InStr(city, LCase(CustomCities(j))) > 0 Then
-                    found = True
-                    Exit For
-                End If
-            Next j
-            
-            If found Then
-                cityKey = dept & " СписокГородов"  ' колонка G
-            Else
-                cityKey = dept & " Остальные"       ' колонка I
-            End If
-            
-            If Not dictCity.exists(cityKey) Then
-                dictCity.Add cityKey, 0
-            End If
-            dictCity(cityKey) = dictCity(cityKey) + 1
-        End If
-        
-NextRow:
+    ' Создаем словарь ID -> строка
+    Set dict = CreateObject("Scripting.Dictionary")
+    For i = 1 To UBound(baseArr, 1)
+        dict(baseArr(i, 4)) = i ' ID в колонке 4
     Next i
     
-    ' === 7. Вставка основного отчёта в B/C ===
-    Dim k As Variant
-    For Each k In dict.keys
-        If cellMap.exists(k) Then
-            wsReport.Range(cellMap(k)(0)).Value = dict(k)("Target")
-            wsReport.Range(cellMap(k)(1)).Value = dict(k)("Intern")
+    ' Считываем ID с листа редактирования (с 10 строки)
+    For i = 10 To lastRowEdit
+        ID = wsEdit.Cells(i, 4).Value
+        If dict.exists(ID) Then
+            ' Копируем всю строку из массива в лист редактирования
+            For j = 1 To 27
+                wsEdit.Cells(i, j).Value = baseArr(dict(ID), j)
+            Next j
+        ElseIf ID <> "" Then
+            wsEdit.Cells(i, 1).Value = "ID не найден"
         End If
-    Next k
+    Next i
     
-    ' === 8. Вставка городов в G/I ===
-    Dim kc As Variant
-    For Each kc In dictCity.keys
-        If cellMap.exists(kc) Then
-            wsReport.Range(cellMap(kc)).Value = dictCity(kc)
-        End If
-    Next kc
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
     
-    ' === 9. Сохранение нового отчёта ===
-    savePath = ThisWorkbook.Path & "\Отчет_" & Format(Now, "dd.mm.yyyy_hh.mm") & ".xlsx"
-    wbNew.SaveAs savePath
-    
-    MsgBox "Готово! Отчёт сохранён: " & savePath
-    
-    wbData.Close False
+    MsgBox "Данные загружены быстро!"
+End Sub
 
+
+
+
+
+
+Sub СохранитьДанныеБыстро()
+    Dim wsBase As Worksheet, wsEdit As Worksheet
+    Dim baseArr As Variant
+    Dim lastRowBase As Long, lastRowEdit As Long
+    Dim dict As Object
+    Dim i As Long, j As Long
+    Dim ID As Variant
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    Set wsBase = ThisWorkbook.Sheets(1)
+    Set wsEdit = ThisWorkbook.Sheets(3)
+    
+    lastRowBase = wsBase.Cells(wsBase.Rows.Count, 4).End(xlUp).Row
+    lastRowEdit = wsEdit.Cells(wsEdit.Rows.Count, 4).End(xlUp).Row
+    
+    ' Считываем базу в массив
+    baseArr = wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, 27)).Value
+    
+    ' Создаем словарь ID -> строка
+    Set dict = CreateObject("Scripting.Dictionary")
+    For i = 1 To UBound(baseArr, 1)
+        dict(baseArr(i, 4)) = i
+    Next i
+    
+    ' Обновляем массив по ID
+    For i = 10 To lastRowEdit
+        ID = wsEdit.Cells(i, 4).Value
+        If dict.exists(ID) Then
+            For j = 1 To 27
+                baseArr(dict(ID), j) = wsEdit.Cells(i, j).Value
+            Next j
+        End If
+    Next i
+    
+    ' Сохраняем обратно на лист
+    wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, 27)).Value = baseArr
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    
+    MsgBox "Данные успешно сохранены быстро!"
 End Sub
