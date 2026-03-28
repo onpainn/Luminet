@@ -138,3 +138,22 @@ Sub ДобавитьПользователей()
     
     MsgBox "Новые сотрудники добавлены!"
 End Sub
+
+
+
+
+Sub ОчиститьФорму()
+    Dim wsEdit As Worksheet
+    
+    Set wsEdit = ThisWorkbook.Sheets(3)
+    
+    Application.ScreenUpdating = False
+    
+    ' Очищаем все строки с 10 вниз
+    wsEdit.Rows("10:" & wsEdit.Rows.Count).ClearContents
+    
+    Application.ScreenUpdating = True
+    
+    MsgBox "Форма очищена!"
+End Sub
+
