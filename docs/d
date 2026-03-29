@@ -1,0 +1,122 @@
+Sub СинхронизацияКомандировок()
+
+    Dim wbMain As Workbook, wbTrip As Workbook
+    Dim wsMain As Worksheet, wsTrip As Worksheet, wsDay As Worksheet
+    
+    Dim dictOld As Object, dictNew As Object
+    
+    Dim lastRowMain As Long, lastRowTrip As Long
+    Dim i As Long, ID As Variant
+    
+    Dim todaySheet As String
+    Dim rowDay As Long, rowWrite As Long
+    
+    ' --- КОЛОНКИ В ГЛАВНОЙ ТАБЛИЦЕ ---
+    Const COL_ID = 4
+    Const COL_NAME = 2
+    Const COL_DEPT = 5
+    Const COL_POS = 6
+    Const COL_TRIP = 27
+    
+    ' --- КОЛОНКИ В ШАБЛОНЕ (ЛИСТ ДНЯ) ---
+    Const DAY_NAME = 1   ' ФИО
+    Const DAY_DEPT = 2   ' Отдел
+    Const DAY_POS = 3    ' Должность
+    Const DAY_TYPE = 4   ' Тип (уехал/вернулся)
+    Const DAY_DATE = 5   ' Дата
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    Set wbMain = ThisWorkbook
+    Set wsMain = wbMain.Sheets(1)
+    
+    ' 👉 УКАЖИ ПУТЬ
+    Set wbTrip = Workbooks.Open("C:\ПУТЬ\Командировка.xlsx")
+    
+    Set wsTrip = wbTrip.Sheets("Полный список")
+    
+    todaySheet = Day(Date)
+    Set wsDay = wbTrip.Sheets(todaySheet)
+    
+    ' --- старый список ---
+    Set dictOld = CreateObject("Scripting.Dictionary")
+    
+    lastRowTrip = wsTrip.Cells(wsTrip.Rows.Count, COL_ID).End(xlUp).Row
+    
+    For i = 2 To lastRowTrip
+        dictOld(wsTrip.Cells(i, COL_ID).Value) = True
+    Next i
+    
+    ' --- новый список ---
+    Set dictNew = CreateObject("Scripting.Dictionary")
+    
+    lastRowMain = wsMain.Cells(wsMain.Rows.Count, COL_ID).End(xlUp).Row
+    
+    For i = 2 To lastRowMain
+        If wsMain.Cells(i, COL_TRIP).Value = "+" Then
+            dictNew(wsMain.Cells(i, COL_ID).Value) = i
+        End If
+    Next i
+    
+    ' --- первая пустая строка в шаблоне ---
+    rowDay = wsDay.Cells(wsDay.Rows.Count, DAY_NAME).End(xlUp).Row + 1
+    
+    ' ===== УЕХАЛИ =====
+    For Each ID In dictNew.Keys
+        If Not dictOld.exists(ID) Then
+            
+            i = dictNew(ID)
+            
+            wsDay.Cells(rowDay, DAY_NAME).Value = wsMain.Cells(i, COL_NAME).Value
+            wsDay.Cells(rowDay, DAY_DEPT).Value = wsMain.Cells(i, COL_DEPT).Value
+            wsDay.Cells(rowDay, DAY_POS).Value = wsMain.Cells(i, COL_POS).Value
+            wsDay.Cells(rowDay, DAY_TYPE).Value = "Уехал"
+            wsDay.Cells(rowDay, DAY_DATE).Value = Date
+            
+            rowDay = rowDay + 1
+            
+        End If
+    Next ID
+    
+    ' ===== ВЕРНУЛИСЬ =====
+    For Each ID In dictOld.Keys
+        If Not dictNew.exists(ID) Then
+            
+            wsDay.Cells(rowDay, DAY_NAME).Value = "ID: " & ID
+            wsDay.Cells(rowDay, DAY_TYPE).Value = "Вернулся"
+            wsDay.Cells(rowDay, DAY_DATE).Value = Date
+            
+            rowDay = rowDay + 1
+            
+        End If
+    Next ID
+    
+    ' --- очищаем список ---
+    wsTrip.Rows("2:" & wsTrip.Rows.Count).ClearContents
+    
+    ' --- записываем новый список ---
+    rowWrite = 2
+    
+    For Each ID In dictNew.Keys
+        
+        i = dictNew(ID)
+        
+        wsTrip.Cells(rowWrite, 1).Value = wsMain.Cells(i, COL_ID).Value
+        wsTrip.Cells(rowWrite, 2).Value = wsMain.Cells(i, COL_NAME).Value
+        wsTrip.Cells(rowWrite, 3).Value = wsMain.Cells(i, COL_DEPT).Value
+        wsTrip.Cells(rowWrite, 4).Value = wsMain.Cells(i, COL_POS).Value
+        
+        rowWrite = rowWrite + 1
+        
+    Next ID
+    
+    wbTrip.Save
+    wbTrip.Close
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    
+    MsgBox "Командировки обновлены!"
+    
+End Sub
