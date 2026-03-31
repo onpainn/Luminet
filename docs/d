@@ -1,3 +1,132 @@
+Sub СохранитьДанные()
+
+    Dim wsBase As Worksheet, wsEdit As Worksheet, wsLog As Worksheet
+    Dim baseArr As Variant
+    Dim dict As Object, dictDay As Object
+    
+    Dim lastRowBase As Long, lastRowEdit As Long, lastRowLog As Long
+    Dim i As Long, j As Long
+    Dim ID As Variant
+    
+    Dim foundDateRow As Long
+    Dim writeRow As Long
+    Dim currentDate As String
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    Set wsBase = ThisWorkbook.Sheets(1)
+    Set wsEdit = ThisWorkbook.Sheets(3)
+    Set wsLog = ThisWorkbook.Sheets("Отработанные ID")
+    
+    ' ==============================
+    ' 🔹 1. ЛОГИРОВАНИЕ ID (накопительно)
+    ' ==============================
+    
+    Set dictDay = CreateObject("Scripting.Dictionary")
+    currentDate = Format(Date, "dd.mm.yyyy")
+    
+    lastRowLog = wsLog.Cells(wsLog.Rows.Count, 1).End(xlUp).Row
+    foundDateRow = 0
+    
+    ' ищем дату
+    For i = lastRowLog To 1 Step -1
+        If wsLog.Cells(i, 1).Value = currentDate Then
+            foundDateRow = i
+            Exit For
+        End If
+    Next i
+    
+    If foundDateRow <> 0 Then
+        
+        writeRow = foundDateRow + 1
+        
+        ' собираем уже записанные ID
+        Do While wsLog.Cells(writeRow, 1).Value <> ""
+            dictDay(wsLog.Cells(writeRow, 1).Value) = True
+            writeRow = writeRow + 1
+        Loop
+        
+    Else
+        
+        writeRow = lastRowLog + 2
+        wsLog.Cells(writeRow, 1).Value = currentDate
+        writeRow = writeRow + 1
+        
+    End If
+    
+    lastRowEdit = wsEdit.Cells(wsEdit.Rows.Count, 1).End(xlUp).Row
+    
+    For i = 10 To lastRowEdit
+        
+        ID = wsEdit.Cells(i, 1).Value
+        
+        If ID <> "" Then
+            If Not dictDay.exists(ID) Then
+                
+                wsLog.Cells(writeRow, 1).Value = ID
+                dictDay(ID) = True
+                writeRow = writeRow + 1
+                
+            End If
+        End If
+        
+    Next i
+    
+    ' ==============================
+    ' 🔹 2. СОХРАНЕНИЕ В БАЗУ
+    ' ==============================
+    
+    lastRowBase = wsBase.Cells(wsBase.Rows.Count, 1).End(xlUp).Row
+    
+    ' загружаем базу в массив
+    baseArr = wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, 27)).Value
+    
+    ' словарь ID → строка
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(baseArr, 1)
+        dict(baseArr(i, 1)) = i
+    Next i
+    
+    ' обновляем массив
+    For i = 10 To lastRowEdit
+        
+        ID = wsEdit.Cells(i, 1).Value
+        
+        If ID <> "" Then
+            If dict.exists(ID) Then
+                
+                For j = 1 To 27
+                    baseArr(dict(ID), j) = wsEdit.Cells(i, j).Value
+                Next j
+                
+            End If
+        End If
+        
+    Next i
+    
+    ' записываем обратно
+    wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, 27)).Value = baseArr
+    
+    ' ==============================
+    ' 🔹 3. ОЧИСТКА ФОРМЫ
+    ' ==============================
+    
+    wsEdit.Rows("10:" & wsEdit.Rows.Count).ClearContents
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    
+    MsgBox "Данные сохранены, ID записаны!"
+    
+End Sub
+
+
+
+
+
+
 Sub СинхронизацияКомандировок()
 
     Dim wbMain As Workbook, wbTrip As Workbook
