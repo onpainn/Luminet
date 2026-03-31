@@ -55,3 +55,38 @@ Sub SaveBackData()
     MsgBox "Изменения сохранены!"
 
 End Sub
+
+
+
+
+
+Sub LoadByDateFromCell()
+
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim lastRow As Long, i As Long
+    Dim pasteRow As Long
+    Dim userDate As Date
+    
+    Set ws1 = ThisWorkbook.Sheets("Лист1")
+    Set ws2 = ThisWorkbook.Sheets("Лист2")
+    
+    userDate = ws2.Range("B1").Value
+    
+    ws2.Range("A2:O100000").ClearContents
+    pasteRow = 2
+    
+    lastRow = ws1.Cells(ws1.Rows.Count, "I").End(xlUp).Row
+    
+    For i = 1 To lastRow
+        If DateValue(ws1.Cells(i, "I").Value) = userDate Then
+            
+            ws2.Range(ws2.Cells(pasteRow, "A"), ws2.Cells(pasteRow, "O")).Value = _
+            ws1.Range(ws1.Cells(i, "A"), ws1.Cells(i, "O")).Value
+            
+            pasteRow = pasteRow + 1
+        End If
+    Next i
+
+    MsgBox "Готово 👍"
+
+End Sub
