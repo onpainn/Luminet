@@ -1,0 +1,72 @@
+Sub UpdateStatuses_NoReplace()
+
+    Dim wbSource As Workbook, wbTarget As Workbook
+    Dim wsSource As Worksheet, wsTarget As Worksheet
+    Dim fileSource As String, fileTarget As String
+    
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    Dim arrIDSource As Variant, arrStatusSource As Variant
+    Dim arrIDTarget As Variant, arrStatusTarget As Variant
+    
+    Dim lastRowSource As Long, lastRowTarget As Long
+    Dim i As Long, id As String
+
+    ' 🚀 Ускорение
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+
+    ' Выбор файлов
+    fileSource = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx", , "Выберите главный файл")
+    If fileSource = "False" Then GoTo ExitHandler
+    
+    fileTarget = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx", , "Выберите файл для обновления")
+    If fileTarget = "False" Then GoTo ExitHandler
+
+    ' Открытие
+    Set wbSource = Workbooks.Open(fileSource)
+    Set wbTarget = Workbooks.Open(fileTarget)
+
+    Set wsSource = wbSource.Sheets(1)
+    Set wsTarget = wbTarget.Sheets(1)
+
+    ' Последние строки
+    lastRowSource = wsSource.Cells(wsSource.Rows.Count, 5).End(xlUp).Row
+    lastRowTarget = wsTarget.Cells(wsTarget.Rows.Count, 6).End(xlUp).Row
+
+    ' Загружаем только нужные колонки
+    arrIDSource = wsSource.Range("E2:E" & lastRowSource).Value
+    arrStatusSource = wsSource.Range("J2:J" & lastRowSource).Value
+
+    arrIDTarget = wsTarget.Range("F2:F" & lastRowTarget).Value
+    arrStatusTarget = wsTarget.Range("M2:M" & lastRowTarget).Value
+
+    ' Словарь
+    For i = 1 To UBound(arrIDSource, 1)
+        id = LCase(Trim(arrIDSource(i, 1)))
+        If id <> "" Then
+            dict(id) = arrStatusSource(i, 1)
+        End If
+    Next i
+
+    ' Обновление
+    For i = 1 To UBound(arrIDTarget, 1)
+        id = LCase(Trim(arrIDTarget(i, 1)))
+        If dict.exists(id) Then
+            arrStatusTarget(i, 1) = dict(id)
+        End If
+    Next i
+
+    ' Запись обратно
+    wsTarget.Range("M2").Resize(UBound(arrStatusTarget, 1), 1).Value = arrStatusTarget
+
+    MsgBox "Готово (ещё быстрее)"
+
+ExitHandler:
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+
+End Sub
