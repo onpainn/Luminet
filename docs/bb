@@ -1,0 +1,57 @@
+Sub LoadTodayData()
+
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim lastRow As Long, i As Long
+    Dim pasteRow As Long
+    
+    Set ws1 = ThisWorkbook.Sheets("Лист1")
+    Set ws2 = ThisWorkbook.Sheets("Лист2")
+    
+    ws2.Cells.Clear
+    pasteRow = 1
+    
+    lastRow = ws1.Cells(ws1.Rows.Count, "I").End(xlUp).Row
+    
+    For i = 1 To lastRow
+        If ws1.Cells(i, "I").Value = Date Then
+            ws1.Range(ws1.Cells(i, "A"), ws1.Cells(i, "O")).Copy _
+                ws2.Cells(pasteRow, "A")
+            pasteRow = pasteRow + 1
+        End If
+    Next i
+
+    MsgBox "Данные загружены!"
+
+End Sub
+
+
+Sub SaveBackData()
+
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim lastRow1 As Long, lastRow2 As Long
+    Dim i As Long, j As Long
+    
+    Set ws1 = ThisWorkbook.Sheets("Лист1")
+    Set ws2 = ThisWorkbook.Sheets("Лист2")
+    
+    lastRow1 = ws1.Cells(ws1.Rows.Count, "A").End(xlUp).Row
+    lastRow2 = ws2.Cells(ws2.Rows.Count, "A").End(xlUp).Row
+    
+    For i = 1 To lastRow2
+        For j = 1 To lastRow1
+            
+            ' Сравниваем ID (колонка A)
+            If ws2.Cells(i, "A").Value = ws1.Cells(j, "A").Value Then
+                
+                ws2.Range(ws2.Cells(i, "A"), ws2.Cells(i, "O")).Copy _
+                    ws1.Cells(j, "A")
+                    
+                Exit For
+            End If
+            
+        Next j
+    Next i
+
+    MsgBox "Изменения сохранены!"
+
+End Sub
