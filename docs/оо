@@ -70,3 +70,81 @@ ExitHandler:
     Application.EnableEvents = True
 
 End Sub
+
+
+
+
+
+Sub LoadByDate_Smart()
+
+    Dim ws1 As Worksheet, ws2 As Worksheet
+    Dim lastRow As Long, i As Long
+    Dim pasteRow As Long
+    Dim userDate As Date
+    
+    Dim cellText As String
+    Dim arr As Variant
+    Dim part As Variant
+    Dim found As Boolean
+    
+    Set ws1 = ThisWorkbook.Sheets("Лист1")
+    Set ws2 = ThisWorkbook.Sheets("Лист2")
+    
+    ' Проверка даты
+    If Not IsDate(ws2.Range("B1").Value) Then
+        MsgBox "Введите корректную дату в B1!", vbExclamation
+        Exit Sub
+    End If
+    
+    userDate = Int(ws2.Range("B1").Value)
+    
+    ws2.Range("A2:P100000").ClearContents
+    pasteRow = 2
+    
+    lastRow = ws1.Cells(ws1.Rows.Count, "I").End(xlUp).Row
+    
+    For i = 1 To lastRow
+        
+        If Not IsError(ws1.Cells(i, "I").Value) Then
+            
+            cellText = CStr(ws1.Cells(i, "I").Value)
+            
+            ' Разбиваем строку (учитываем разные разделители)
+            cellText = Replace(cellText, ",", " ")
+            cellText = Replace(cellText, ";", " ")
+            cellText = Replace(cellText, "/", " ")
+            cellText = Replace(cellText, "-", " ")
+            
+            arr = Split(cellText, " ")
+            
+            found = False
+            
+            For Each part In arr
+                
+                If IsDate(part) Then
+                    
+                    If Int(CDate(part)) = userDate Then
+                        found = True
+                        Exit For
+                    End If
+                    
+                End If
+                
+            Next part
+            
+            If found Then
+                
+                ws2.Range(ws2.Cells(pasteRow, "A"), ws2.Cells(pasteRow, "P")).Value = _
+                ws1.Range(ws1.Cells(i, "A"), ws1.Cells(i, "P")).Value
+                
+                pasteRow = pasteRow + 1
+                
+            End If
+            
+        End If
+        
+    Next i
+
+    MsgBox "Умный поиск завершён 🚀"
+
+End Sub
