@@ -249,3 +249,147 @@ Sub СинхронизацияКомандировок()
     MsgBox "Командировки обновлены!"
     
 End Sub
+
+
+
+Sub СохранитьДанные()
+
+    Dim wsBase As Worksheet, wsEdit As Worksheet, wsLog As Worksheet
+    Dim baseArr As Variant
+    Dim dict As Object, dictOldDay As Object, dictNew As Object
+    
+    Dim lastRowBase As Long, lastRowEdit As Long, lastRowLog As Long
+    Dim i As Long, j As Long
+    Dim ID As Variant
+    
+    Dim currentDate As String
+    Dim dateRow As Long, writeRow As Long
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    Set wsBase = ThisWorkbook.Sheets(1)
+    Set wsEdit = ThisWorkbook.Sheets(3)
+    Set wsLog = ThisWorkbook.Sheets("Отработанные ID")
+    
+    currentDate = Format(Date, "dd.mm.yyyy")
+    
+    Set dictOldDay = CreateObject("Scripting.Dictionary")
+    Set dictNew = CreateObject("Scripting.Dictionary")
+    
+    ' ==============================
+    ' 🔹 1. собираем новые ID
+    ' ==============================
+    
+    lastRowEdit = wsEdit.Cells(wsEdit.Rows.Count, 1).End(xlUp).Row
+    
+    For i = 10 To lastRowEdit
+        ID = wsEdit.Cells(i, 1).Value
+        If ID <> "" Then
+            dictNew(ID) = True
+        End If
+    Next i
+    
+    ' ==============================
+    ' 🔹 2. ищем дату
+    ' ==============================
+    
+    lastRowLog = wsLog.Cells(wsLog.Rows.Count, 1).End(xlUp).Row
+    dateRow = 0
+    
+    For i = lastRowLog To 1 Step -1
+        If wsLog.Cells(i, 1).Value = currentDate Then
+            dateRow = i
+            Exit For
+        End If
+    Next i
+    
+    ' ==============================
+    ' 🔹 3. собираем старые ID
+    ' ==============================
+    
+    If dateRow <> 0 Then
+        
+        i = dateRow + 1
+        
+        Do While wsLog.Cells(i, 1).Value <> ""
+            If Not dictNew.exists(wsLog.Cells(i, 1).Value) Then
+                dictOldDay(wsLog.Cells(i, 1).Value) = True
+            End If
+            i = i + 1
+        Loop
+        
+        ' очищаем старые записи
+        wsLog.Rows(dateRow + 1 & ":" & i - 1).ClearContents
+        
+        writeRow = dateRow + 1
+        
+    Else
+        
+        writeRow = lastRowLog + 2
+        wsLog.Cells(writeRow, 1).Value = currentDate
+        writeRow = writeRow + 1
+        
+    End If
+    
+    ' ==============================
+    ' 🔹 4. записываем НОВЫЕ
+    ' ==============================
+    
+    For Each ID In dictNew.Keys
+        wsLog.Cells(writeRow, 1).Value = ID
+        writeRow = writeRow + 1
+    Next ID
+    
+    ' ==============================
+    ' 🔹 5. записываем СТАРЫЕ
+    ' ==============================
+    
+    For Each ID In dictOldDay.Keys
+        wsLog.Cells(writeRow, 1).Value = ID
+        writeRow = writeRow + 1
+    Next ID
+    
+    ' ==============================
+    ' 🔹 6. сохранение базы
+    ' ==============================
+    
+    lastRowBase = wsBase.Cells(wsBase.Rows.Count, 1).End(xlUp).Row
+    baseArr = wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, 27)).Value
+    
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(baseArr, 1)
+        dict(baseArr(i, 1)) = i
+    Next i
+    
+    For i = 10 To lastRowEdit
+        
+        ID = wsEdit.Cells(i, 1).Value
+        
+        If ID <> "" Then
+            If dict.exists(ID) Then
+                
+                For j = 1 To 27
+                    baseArr(dict(ID), j) = wsEdit.Cells(i, j).Value
+                Next j
+                
+            End If
+        End If
+        
+    Next i
+    
+    wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, 27)).Value = baseArr
+    
+    ' ==============================
+    ' 🔹 7. очистка
+    ' ==============================
+    
+    wsEdit.Rows("10:" & wsEdit.Rows.Count).ClearContents
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    
+    MsgBox "Сохранено! Новые ID сверху."
+    
+End Sub
