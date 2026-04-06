@@ -1,56 +1,74 @@
-Sub CompareAndUpdateStatusLog()
 
-    Dim wsLog As Worksheet
-    Set wsLog = ThisWorkbook.Sheets("Лог") ' Лист, куда выводим результаты
-    
-    ' --- Выбор файлов ---
+Sub CompareAndUpdateStatus()
+
+    '==============================
+    ' Настройки: подставьте свои значения
+    '==============================
     Dim oldFile As String, newFile As String
+    
+    ' Файл 1: Старый файл, откуда берём первый лист и куда пишем на второй лист
     oldFile = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx", , "Выберите старый файл")
     If oldFile = "False" Then Exit Sub
     
+    ' Файл 2: Новый файл, с которым сравниваем
     newFile = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx", , "Выберите новый файл")
     If newFile = "False" Then Exit Sub
+
+    ' Лист для логов внутри старого файла
+    Dim wsLog As Worksheet
+    '==============================
+    ' Здесь подставьте название листа для вывода изменений (второй лист)
+    '==============================
     
-    ' --- Открываем файлы ---
     Dim wbOld As Workbook, wbNew As Workbook
     Set wbOld = Workbooks.Open(oldFile)
     Set wbNew = Workbooks.Open(newFile)
     
-    Dim wsOld As Worksheet, wsNew As Worksheet
-    Set wsOld = wbOld.Sheets(1)
-    Set wsNew = wbNew.Sheets(1)
+    Set wsLog = wbOld.Sheets(2) ' второй лист старого файла
     
-    ' --- Находим последнюю строку ---
+    '==============================
+    ' Укажите листы для сравнения:
+    ' wsOldData = первый лист старого файла
+    ' wsNewData = шестой лист нового файла
+    '==============================
+    Dim wsOldData As Worksheet, wsNewData As Worksheet
+    Set wsOldData = wbOld.Sheets(1)  ' первый лист старого файла
+    Set wsNewData = wbNew.Sheets(6)  ' шестой лист нового файла
+    
+    '==============================
+    ' Получаем данные из листов
+    ' Колонки: A = ID, B = Статус, C = Категория, D = Командировка (если есть)
+    '==============================
     Dim lastRowOld As Long, lastRowNew As Long
-    lastRowOld = wsOld.Cells(wsOld.Rows.Count, 1).End(xlUp).Row
-    lastRowNew = wsNew.Cells(wsNew.Rows.Count, 1).End(xlUp).Row
+    lastRowOld = wsOldData.Cells(wsOldData.Rows.Count, 1).End(xlUp).Row
+    lastRowNew = wsNewData.Cells(wsNewData.Rows.Count, 1).End(xlUp).Row
     
-    ' --- Берём данные в массивы ---
     Dim oldData As Variant, newData As Variant
-    oldData = wsOld.Range("A2:E" & lastRowOld).Value ' Предположим: ID, Status, Category
-    newData = wsNew.Range("A2:E" & lastRowNew).Value
+    oldData = wsOldData.Range("A2:D" & lastRowOld).Value
+    newData = wsNewData.Range("A2:D" & lastRowNew).Value
     
-    ' --- Создаём массив для сравнения ---
-    Dim data() As Variant
-    Dim i As Long, j As Long, r As Long
+    '==============================
+    ' Находим изменения
+    '==============================
+    Dim changes() As Variant
+    Dim r As Long, i As Long, j As Long
     r = 0
-    ReDim data(1 To lastRowNew - 1, 1 To 5) ' ID, oldStatus, newStatus, oldCat, newCat
+    ReDim changes(1 To lastRowNew - 1, 1 To 5) ' ID, oldStatus, newStatus, oldCat, newCat
     
-    ' --- Заполняем массив только изменившимися записями ---
     For i = 1 To UBound(newData, 1)
         Dim idNew As Variant
         idNew = newData(i, 1)
         
         For j = 1 To UBound(oldData, 1)
             If oldData(j, 1) = idNew Then
-                ' Если статус или категория изменились
+                ' Если изменился статус или категория
                 If oldData(j, 2) <> newData(i, 2) Or oldData(j, 3) <> newData(i, 3) Then
                     r = r + 1
-                    data(r, 1) = idNew
-                    data(r, 2) = oldData(j, 2) ' старый статус
-                    data(r, 3) = newData(i, 2) ' новый статус
-                    data(r, 4) = oldData(j, 3) ' старая категория
-                    data(r, 5) = newData(i, 3) ' новая категория
+                    changes(r, 1) = idNew
+                    changes(r, 2) = oldData(j, 2)  ' старый статус
+                    changes(r, 3) = newData(i, 2)  ' новый статус
+                    changes(r, 4) = oldData(j, 3)  ' старая категория
+                    changes(r, 5) = newData(i, 3)  ' новая категория
                 End If
                 Exit For
             End If
@@ -58,79 +76,106 @@ Sub CompareAndUpdateStatusLog()
     Next i
     
     If r = 0 Then
-        MsgBox "Нет изменений"
+        MsgBox "Нет изменений!"
         wbOld.Close False
         wbNew.Close False
         Exit Sub
     End If
     
-    ReDim Preserve data(1 To r, 1 To 5)
+    ReDim Preserve changes(1 To r, 1 To 5)
     
-    ' --- Считаем пришло/ушло с категориями ---
-    Call UpdateStatusLog(wsLog, data)
+    '==============================
+    ' Обновляем второй лист старого файла
+    '==============================
+    Call UpdateStatusLog(wsLog, changes)
     
-    ' --- Закрываем файлы ---
-    wbOld.Close False
+    '==============================
+    ' Закрываем новый файл, сохраняем старый
+    '==============================
     wbNew.Close False
+    wbOld.Save
     
-    MsgBox "Готово! Статусы обновлены."
-    
+    MsgBox "Обновление завершено!"
+
 End Sub
 
-Sub UpdateStatusLog(wsLog As Worksheet, data As Variant)
+'==============================
+' Подпрограмма: подсчет и вставка в лог
+'==============================
+Sub UpdateStatusLog(wsLog As Worksheet, changes As Variant)
 
     Dim dictIn As Object, dictOut As Object
     Set dictIn = CreateObject("Scripting.Dictionary")
     Set dictOut = CreateObject("Scripting.Dictionary")
     
-    Dim mapCells As Object
-    Set mapCells = CreateObject("Scripting.Dictionary")
-    
-    ' --- Статусы + категории → ячейки ---
-    mapCells.Add "в наличии|Склад", "B2"
-    mapCells.Add "в наличии|Не склад", "C2"
-    
-    mapCells.Add "не в сети|Склад", "B3"
-    mapCells.Add "не в сети|Не склад", "C3"
-    
-    mapCells.Add "ремонт|Склад", "B4"
-    mapCells.Add "ремонт|Не склад", "C4"
-    
-    mapCells.Add "отсутствует|Склад", "B5"
-    mapCells.Add "отсутствует|Не склад", "C5"
-    
     Dim i As Long
-    For i = 1 To UBound(data, 1)
-        Dim oldStatus As String, newStatus As String
-        Dim oldCat As String, newCat As String
-        Dim key As String
-        
-        oldStatus = Trim(CStr(data(i, 2)))
-        newStatus = Trim(CStr(data(i, 3)))
-        oldCat = Trim(CStr(data(i, 4)))
-        newCat = Trim(CStr(data(i, 5)))
+    Dim oldStatus As String, newStatus As String
+    Dim oldCat As String, newCat As String
+    Dim keyOld As String, keyNew As String
+    
+    ' ===== Подсчёт изменений =====
+    For i = 1 To UBound(changes, 1)
+        oldStatus = Trim(CStr(changes(i, 2)))
+        newStatus = Trim(CStr(changes(i, 3)))
+        oldCat = Trim(CStr(changes(i, 4)))
+        newCat = Trim(CStr(changes(i, 5)))
         
         ' ===== УШЛО =====
         If oldStatus <> "" Then
-            If InStr(LCase(oldCat), "склад") > 0 Then key = oldStatus & "|Склад" Else key = oldStatus & "|Не склад"
-            If Not dictOut.Exists(key) Then dictOut.Add key, 0
-            dictOut(key) = dictOut(key) + 1
+            If LCase(oldCat) = "командировка" Then
+                keyOld = oldStatus & "|Командировка"
+            Else
+                keyOld = oldStatus & "|Не командировка"
+            End If
+            
+            If Not dictOut.Exists(keyOld) Then dictOut.Add keyOld, 0
+            dictOut(keyOld) = dictOut(keyOld) + 1
         End If
         
         ' ===== ПРИШЛО =====
         If newStatus <> "" Then
-            If InStr(LCase(newCat), "склад") > 0 Then key = newStatus & "|Склад" Else key = newStatus & "|Не склад"
-            If Not dictIn.Exists(key) Then dictIn.Add key, 0
-            dictIn(key) = dictIn(key) + 1
+            If LCase(newCat) = "командировка" Then
+                keyNew = newStatus & "|Командировка"
+            Else
+                keyNew = newStatus & "|Не командировка"
+            End If
+            
+            If Not dictIn.Exists(keyNew) Then dictIn.Add keyNew, 0
+            dictIn(keyNew) = dictIn(keyNew) + 1
         End If
     Next i
     
-    ' ===== ВЫВОД =====
-    Dim k As Variant, inVal As Long, outVal As Long
-    For Each k In mapCells.Keys
-        If dictIn.Exists(k) Then inVal = dictIn(k) Else inVal = 0
-        If dictOut.Exists(k) Then outVal = dictOut(k) Else outVal = 0
-        wsLog.Range(mapCells(k)).Value = inVal & "/" & outVal
+    ' ===== Динамическое определение колонок =====
+    Dim allKeys As Object
+    Set allKeys = CreateObject("Scripting.Dictionary")
+    Dim colStart As Long
+    colStart = 2 ' колонка B, можно изменить
+    
+    Dim k As Variant
+    For Each k In dictIn.Keys
+        If Not allKeys.Exists(k) Then
+            allKeys.Add k, colStart
+            colStart = colStart + 1
+        End If
+    Next k
+    For Each k In dictOut.Keys
+        If Not allKeys.Exists(k) Then
+            allKeys.Add k, colStart
+            colStart = colStart + 1
+        End If
     Next k
     
+    ' ===== Вставка значений =====
+    Dim rRow As Long
+    rRow = 2 ' строка для вывода
+    Dim inVal As Long, outVal As Long
+    
+    For Each k In allKeys.Keys
+        If dictIn.Exists(k) Then inVal = dictIn(k) Else inVal = 0
+        If dictOut.Exists(k) Then outVal = dictOut(k) Else outVal = 0
+        
+        wsLog.Cells(rRow, allKeys(k)).Value = inVal & "/" & outVal
+        ' Можно вставить формулу или другой формат при необходимости
+    Next k
+
 End Sub
