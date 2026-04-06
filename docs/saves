@@ -1,8 +1,6 @@
-Sub CompareAndUpdateFixedCells()
+Sub CompareAndUpdateTwoGroups()
 
-    '==============================
-    ' Настройки: файлы и листы
-    '==============================
+    ' ===== Настройки: файлы =====
     Dim oldFile As String, newFile As String
     oldFile = Application.GetOpenFilename("Excel Files (*.xlsx), *.xlsx", , "Выберите старый файл")
     If oldFile = "False" Then Exit Sub
@@ -14,15 +12,12 @@ Sub CompareAndUpdateFixedCells()
     Set wbOld = Workbooks.Open(oldFile)
     Set wbNew = Workbooks.Open(newFile)
     
-    Dim wsOldData As Worksheet, wsOldLog As Worksheet
+    Dim wsOldData As Worksheet, wsOldLog As Worksheet, wsNewData As Worksheet
     Set wsOldData = wbOld.Sheets(1)  ' первый лист старого файла
-    Set wsOldLog = wbOld.Sheets(2)   ' лист логов для результата
-    Dim wsNewData As Worksheet
+    Set wsOldLog = wbOld.Sheets(2)   ' лист логов
     Set wsNewData = wbNew.Sheets(6)  ' шестой лист нового файла
-
-    '==============================
-    ' Получаем диапазоны данных
-    '==============================
+    
+    ' ===== Данные =====
     Dim lastRowOld As Long, lastRowNew As Long
     lastRowOld = wsOldData.Cells(wsOldData.Rows.Count, 1).End(xlUp).Row
     lastRowNew = wsNewData.Cells(wsNewData.Rows.Count, 1).End(xlUp).Row
@@ -31,36 +26,23 @@ Sub CompareAndUpdateFixedCells()
     oldData = wsOldData.Range("A2:D" & lastRowOld).Value
     newData = wsNewData.Range("A2:D" & lastRowNew).Value
     
-    '==============================
-    ' Маппинг статусов → ячейки на листе логов
-    '==============================
-    Dim mapCells As Object
-    Set mapCells = CreateObject("Scripting.Dictionary")
-    
-    ' Пример: ключ = "Статус|Категория", значение = ячейка
-    mapCells.Add "В наличии|Не командировка", "B2"
-    mapCells.Add "В наличии|Командировка", "C2"
-    mapCells.Add "Не в сети|Не командировка", "D2"
-    mapCells.Add "Не в сети|Командировка", "E2"
-    ' Добавляй сюда все свои статусы и категории
-    
-    '==============================
-    ' Массив для подсчета изменений
-    '==============================
+    ' ===== Словари для подсчета =====
     Dim dictIn As Object, dictOut As Object
     Set dictIn = CreateObject("Scripting.Dictionary")
     Set dictOut = CreateObject("Scripting.Dictionary")
     
-    Dim i As Long, oldStatus As String, newStatus As String
+    Dim i As Long, j As Long
+    Dim oldStatus As String, newStatus As String
     Dim oldCat As String, newCat As String
     Dim keyOld As String, keyNew As String
+    Dim groupOld As String, groupNew As String
     
+    ' ===== Сравнение и подсчет =====
     For i = 1 To UBound(newData, 1)
         Dim idNew As Variant
         idNew = newData(i, 1)
         
-        ' Находим человека в старом файле
-        Dim j As Long
+        ' Ищем в старом файле
         For j = 1 To UBound(oldData, 1)
             If oldData(j, 1) = idNew Then
                 oldStatus = Trim(CStr(oldData(j, 2)))
@@ -68,16 +50,29 @@ Sub CompareAndUpdateFixedCells()
                 oldCat = Trim(CStr(oldData(j, 3)))
                 newCat = Trim(CStr(newData(i, 3)))
                 
+                ' ===== Определяем группу =====
+                If LCase(oldCat) = "командировка" Then
+                    groupOld = "Командировка"
+                Else
+                    groupOld = "Не командировка"
+                End If
+                
+                If LCase(newCat) = "командировка" Then
+                    groupNew = "Командировка"
+                Else
+                    groupNew = "Не командировка"
+                End If
+                
                 ' ===== УШЛО =====
                 If oldStatus <> "" Then
-                    keyOld = oldStatus & "|" & oldCat
+                    keyOld = oldStatus & "|" & groupOld
                     If Not dictOut.Exists(keyOld) Then dictOut.Add keyOld, 0
                     dictOut(keyOld) = dictOut(keyOld) + 1
                 End If
                 
                 ' ===== ПРИШЛО =====
                 If newStatus <> "" Then
-                    keyNew = newStatus & "|" & newCat
+                    keyNew = newStatus & "|" & groupNew
                     If Not dictIn.Exists(keyNew) Then dictIn.Add keyNew, 0
                     dictIn(keyNew) = dictIn(keyNew) + 1
                 End If
@@ -87,22 +82,28 @@ Sub CompareAndUpdateFixedCells()
         Next j
     Next i
     
-    '==============================
-    ' Вставляем значения в фиксированные ячейки
-    '==============================
+    ' ===== Маппинг на фиксированные ячейки =====
+    Dim mapCells As Object
+    Set mapCells = CreateObject("Scripting.Dictionary")
+    
+    ' ===== Подставьте свои ячейки для каждой группы =====
+    mapCells.Add "В наличии|Не командировка", "B2"
+    mapCells.Add "В наличии|Командировка", "C2"
+    mapCells.Add "Не в сети|Не командировка", "D2"
+    mapCells.Add "Не в сети|Командировка", "E2"
+    ' Добавляйте все нужные статусы
+    
+    ' ===== Вставка результатов =====
     Dim k As Variant, inVal As Long, outVal As Long
     For Each k In mapCells.Keys
         If dictIn.Exists(k) Then inVal = dictIn(k) Else inVal = 0
         If dictOut.Exists(k) Then outVal = dictOut(k) Else outVal = 0
-        
         wsOldLog.Range(mapCells(k)).Value = inVal & "/" & outVal
     Next k
     
-    '==============================
-    ' Закрываем новый файл, сохраняем старый
-    '==============================
+    ' ===== Закрываем и сохраняем =====
     wbNew.Close False
     wbOld.Save
-    MsgBox "Обновление выполнено!"
+    MsgBox "Обновление завершено!"
     
 End Sub
