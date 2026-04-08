@@ -1,0 +1,132 @@
+Sub СохранитьДанные()
+
+    Dim wbDB As Workbook
+    Dim wsBase As Worksheet, wsEdit As Worksheet
+    
+    Dim baseArr As Variant
+    Dim dict As Object
+    
+    Dim lastRowBase As Long, lastRowEdit As Long
+    Dim i As Long, j As Long
+    Dim ID As Variant
+    
+    Dim oldStatus As String, newStatus As String
+    Dim historyText As String
+    
+    ' ===== КОЛОНКИ =====
+    Const COL_ID = 1
+    Const COL_STATUS = 7      ' ❗ если не 7 — скажи
+    Const COL_REASON = 14
+    Const COL_VAL1 = 15
+    Const COL_VAL2 = 16
+    Const COL_HISTORY = 28
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    Set wsEdit = ThisWorkbook.Sheets(3)
+    
+    ' ==============================
+    ' 🔹 ОТКРЫВАЕМ БАЗУ
+    ' ==============================
+    
+    Set wbDB = Workbooks.Open("C:\ПУТЬ\База.xlsx") ' ❗ укажи путь
+    Set wsBase = wbDB.Sheets(1)
+    
+    ' ==============================
+    ' 🔹 ЗАГРУЖАЕМ БАЗУ В МАССИВ
+    ' ==============================
+    
+    lastRowBase = wsBase.Cells(wsBase.Rows.Count, COL_ID).End(xlUp).Row
+    
+    baseArr = wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, 28)).Value
+    
+    ' ==============================
+    ' 🔹 СОЗДАЕМ СЛОВАРЬ ID
+    ' ==============================
+    
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(baseArr, 1)
+        If Not dict.exists(baseArr(i, COL_ID)) Then
+            dict(baseArr(i, COL_ID)) = i
+        End If
+    Next i
+    
+    ' ==============================
+    ' 🔹 ОБРАБОТКА ДАННЫХ
+    ' ==============================
+    
+    lastRowEdit = wsEdit.Cells(wsEdit.Rows.Count, COL_ID).End(xlUp).Row
+    
+    For i = 10 To lastRowEdit
+        
+        ID = wsEdit.Cells(i, COL_ID).Value
+        
+        If ID <> "" Then
+            
+            If dict.exists(ID) Then
+                
+                ' --- СТАТУС ---
+                oldStatus = Trim(baseArr(dict(ID), COL_STATUS))
+                newStatus = Trim(wsEdit.Cells(i, COL_STATUS).Value)
+                
+                ' ==========================
+                ' 🔥 ЕСЛИ СТАТУС ИЗМЕНИЛСЯ
+                ' ==========================
+                
+                If oldStatus <> newStatus Then
+                    
+                    historyText = Format(Now, "dd.mm.yyyy hh:mm") & " | " & _
+                                  oldStatus & " → " & newStatus & " | " & _
+                                  wsEdit.Cells(i, COL_REASON).Value & " | " & _
+                                  wsEdit.Cells(i, COL_VAL1).Value & " | " & _
+                                  wsEdit.Cells(i, COL_VAL2).Value
+                    
+                    ' --- ДОБАВЛЯЕМ В ИСТОРИЮ ---
+                    If baseArr(dict(ID), COL_HISTORY) = "" Then
+                        baseArr(dict(ID), COL_HISTORY) = historyText
+                    Else
+                        baseArr(dict(ID), COL_HISTORY) = _
+                        baseArr(dict(ID), COL_HISTORY) & vbLf & historyText
+                    End If
+                    
+                End If
+                
+                ' ==========================
+                ' 🔹 ОБНОВЛЯЕМ ДАННЫЕ
+                ' ==========================
+                
+                For j = 1 To 28
+                    If j <> COL_HISTORY Then
+                        baseArr(dict(ID), j) = wsEdit.Cells(i, j).Value
+                    End If
+                Next j
+                
+            End If
+            
+        End If
+        
+    Next i
+    
+    ' ==============================
+    ' 🔹 ЗАПИСЫВАЕМ В БАЗУ
+    ' ==============================
+    
+    wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, 28)).Value = baseArr
+    
+    wbDB.Save
+    wbDB.Close
+    
+    ' ==============================
+    ' 🔹 ОЧИСТКА ФОРМЫ
+    ' ==============================
+    
+    wsEdit.Rows("10:" & wsEdit.Rows.Count).ClearContents
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    
+    MsgBox "Сохранено. История обновлена!"
+    
+End Sub
