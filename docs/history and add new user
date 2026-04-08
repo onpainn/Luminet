@@ -1,0 +1,117 @@
+Sub ДобавитьСотрудника()
+
+    Dim wbDB As Workbook
+    Dim wsBase As Worksheet, wsEdit As Worksheet
+    
+    Dim baseArr As Variant
+    Dim dictID As Object
+    
+    Dim lastRowBase As Long, lastRowEdit As Long
+    Dim newRow As Long, i As Long, j As Long
+    Dim newID As Variant
+    
+    ' ===== КОЛОНКИ =====
+    Const COL_ID = 1
+    Const COL_FIO = 2
+    Const COL_HISTORY = 28
+    Const COL_DATE = 23
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    
+    Set wsEdit = ThisWorkbook.Sheets(3)
+    
+    ' ==============================
+    ' 🔹 ОТКРЫВАЕМ БАЗУ
+    ' ==============================
+    
+    Set wbDB = Workbooks.Open("C:\ПУТЬ\База.xlsx") ' ❗ укажи путь
+    Set wsBase = wbDB.Sheets(1)
+    
+    ' ==============================
+    ' 🔹 ЗАГРУЖАЕМ БАЗУ
+    ' ==============================
+    
+    lastRowBase = wsBase.Cells(wsBase.Rows.Count, COL_ID).End(xlUp).Row
+    baseArr = wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, COL_HISTORY)).Value
+    
+    ' ==============================
+    ' 🔹 СОЗДАЕМ СЛОВАРЬ СУЩЕСТВУЮЩИХ ID
+    ' ==============================
+    
+    Set dictID = CreateObject("Scripting.Dictionary")
+    For i = 1 To UBound(baseArr, 1)
+        dictID(baseArr(i, COL_ID)) = True
+    Next i
+    
+    ' ==============================
+    ' 🔹 ОБРАБОТКА ФОРМЫ
+    ' ==============================
+    
+    lastRowEdit = wsEdit.Cells(wsEdit.Rows.Count, COL_ID).End(xlUp).Row
+    
+    For i = 10 To lastRowEdit
+        
+        newID = wsEdit.Cells(i, COL_ID).Value
+        
+        ' Проверяем, что есть ID и ФИО
+        If newID <> "" And wsEdit.Cells(i, COL_FIO).Value <> "" Then
+            
+            ' Проверяем, что ID уникален
+            If dictID.exists(newID) Then
+                MsgBox "ID " & newID & " уже существует в базе. Пропускаем строку " & i
+                GoTo NextRow
+            End If
+            
+            ' --- новая строка в базе ---
+            newRow = lastRowBase + 1
+            
+            baseArr(newRow, COL_ID) = newID
+            dictID(newID) = True
+            
+            ' --- копируем остальные данные из формы ---
+            For j = 1 To UBound(baseArr, 2)
+                If j <> COL_HISTORY And j <> COL_ID Then
+                    baseArr(newRow, j) = wsEdit.Cells(i, j).Value
+                End If
+            Next j
+            
+            ' --- формируем историю ---
+            Dim historyText As String
+            historyText = wsEdit.Cells(i, COL_DATE).Value & vbLf & wsEdit.Cells(i, COL_FIO).Value
+            baseArr(newRow, COL_HISTORY) = historyText
+            
+            ' --- сохраняем форматирование предыдущей строки ---
+            If lastRowBase > 1 Then
+                wsBase.Rows(lastRowBase).Copy
+                wsBase.Rows(newRow).PasteSpecial Paste:=xlPasteFormats
+            End If
+            
+            lastRowBase = lastRowBase + 1
+            
+        End If
+        
+NextRow:
+    Next i
+    
+    ' ==============================
+    ' 🔹 ЗАПИСЫВАЕМ В БАЗУ
+    ' ==============================
+    
+    wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, UBound(baseArr, 2))).Value = baseArr
+    
+    wbDB.Save
+    wbDB.Close
+    
+    ' ==============================
+    ' 🔹 ОЧИСТКА ФОРМЫ
+    ' ==============================
+    
+    wsEdit.Rows("10:" & wsEdit.Rows.Count).ClearContents
+    
+    Application.Calculation = xlCalculationAutomatic
+    Application.ScreenUpdating = True
+    
+    MsgBox "Новые сотрудники добавлены и история записана!"
+    
+End Sub
