@@ -159,24 +159,41 @@ Sub СохранитьДанные()
                 ' ==========================
                 ' 🔥 ЕСЛИ СТАТУС ИЗМЕНИЛСЯ
                 ' ==========================
-                
                 If oldStatus <> newStatus Then
                     
-                    historyText = Format(Now, "dd.mm.yyyy hh:mm") & " | " & _
-                                  oldStatus & " → " & newStatus & " | " & _
-                                  wsEdit.Cells(i, COL_REASON).Value & " | " & _
-                                  wsEdit.Cells(i, COL_VAL1).Value & " | " & _
-                                  wsEdit.Cells(i, COL_VAL2).Value
+                    ' --- СОБИРАЕМ ЧИСТУЮ ИСТОРИЮ ---
+                    
+                    historyText = Format(Now, "dd.mm.yyyy hh:mm") & vbLf & _
+                                  oldStatus & " → " & newStatus
+                    
+                    ' причина
+                    If Trim(wsEdit.Cells(i, COL_REASON).Value) <> "" Then
+                        historyText = historyText & vbLf & wsEdit.Cells(i, COL_REASON).Value
+                    End If
+                    
+                    ' значение 1
+                    If Trim(wsEdit.Cells(i, COL_VAL1).Value) <> "" Then
+                        historyText = historyText & vbLf & wsEdit.Cells(i, COL_VAL1).Value
+                    End If
+                    
+                    ' значение 2
+                    If Trim(wsEdit.Cells(i, COL_VAL2).Value) <> "" Then
+                        historyText = historyText & vbLf & wsEdit.Cells(i, COL_VAL2).Value
+                    End If
                     
                     ' --- ДОБАВЛЯЕМ В ИСТОРИЮ ---
+                    
                     If baseArr(dict(ID), COL_HISTORY) = "" Then
                         baseArr(dict(ID), COL_HISTORY) = historyText
                     Else
                         baseArr(dict(ID), COL_HISTORY) = _
-                        baseArr(dict(ID), COL_HISTORY) & vbLf & historyText
+                        baseArr(dict(ID), COL_HISTORY) & vbLf & "-----" & vbLf & historyText
                     End If
                     
                 End If
+                
+                    
+
                 
                 ' ==========================
                 ' 🔹 ОБНОВЛЯЕМ ДАННЫЕ
