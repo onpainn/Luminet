@@ -1,0 +1,44 @@
+Sub ЗаписатьЛог(ID As Variant, FIO As String, Dept As String, Status As String)
+
+    Dim wsLog As Worksheet
+    Dim todayStr As String
+    Dim foundDate As Range
+    Dim insertRow As Long
+
+    Set wsLog = ThisWorkbook.Sheets("Отработанные ID")
+    
+    todayStr = Format(Date, "dd.mm.yyyy")
+
+    ' ищем дату
+    Set foundDate = wsLog.Columns(1).Find(todayStr, LookAt:=xlWhole)
+
+    If foundDate Is Nothing Then
+        
+        ' новая дата в начало
+        wsLog.Rows(1).Insert Shift:=xlDown
+        wsLog.Cells(1, 1).Value = todayStr
+        wsLog.Cells(1, 1).Font.Bold = True
+        
+        insertRow = 2
+        
+    Else
+        
+        ' ищем конец блока
+        insertRow = foundDate.Row + 1
+        
+        Do While wsLog.Cells(insertRow, 1).Value <> ""
+            insertRow = insertRow + 1
+        Loop
+        
+    End If
+
+    ' вставляем строку
+    wsLog.Rows(insertRow).Insert Shift:=xlDown
+
+    ' записываем данные
+    wsLog.Cells(insertRow, 1).Value = ID
+    wsLog.Cells(insertRow, 2).Value = FIO
+    wsLog.Cells(insertRow, 3).Value = Dept
+    wsLog.Cells(insertRow, 4).Value = Status
+
+End Sub
