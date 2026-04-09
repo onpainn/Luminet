@@ -1,3 +1,94 @@
+Sub ПоказатьДанные()
+
+    Dim wbDB As Workbook
+    Dim wsBase As Worksheet, wsEdit As Worksheet
+    
+    Dim baseArr As Variant
+    Dim lastRowBase As Long, lastRowEdit As Long
+    
+    Dim i As Long, j As Long, k As Long
+    Dim found As Boolean
+    
+    Dim searchID As String
+    Dim searchFIO As String
+    Dim searchEmail As String
+    
+    ' ===== КОЛОНКИ =====
+    Const COL_ID = 1
+    Const COL_FIO = 2
+    Const COL_EMAIL = 10 ' ❗ укажи свою
+    
+    Application.ScreenUpdating = False
+    
+    Set wsEdit = ThisWorkbook.Sheets(3)
+    
+    ' 🔹 открыть базу
+    Set wbDB = Workbooks.Open("C:\ПУТЬ\База.xlsx")
+    Set wsBase = wbDB.Sheets(1)
+    
+    ' 🔹 загрузка базы
+    lastRowBase = wsBase.Cells(wsBase.Rows.Count, 1).End(xlUp).Row
+    baseArr = wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, 28)).Value
+    
+    ' 🔹 строки формы
+    lastRowEdit = wsEdit.Cells(wsEdit.Rows.Count, 1).End(xlUp).Row
+    
+    For i = 10 To lastRowEdit
+        
+        searchID = Trim(wsEdit.Cells(i, COL_ID).Value)
+        searchFIO = Trim(wsEdit.Cells(i, COL_FIO).Value)
+        searchEmail = Trim(wsEdit.Cells(i, COL_EMAIL).Value)
+        
+        found = False
+        
+        If searchID <> "" Or searchFIO <> "" Or searchEmail <> "" Then
+            
+            For k = 1 To UBound(baseArr, 1)
+                
+                ' 🔥 ПОИСК ПО КОНКРЕТНОЙ КОЛОНКЕ
+                If (searchID <> "" And baseArr(k, COL_ID) = searchID) _
+                Or (searchFIO <> "" And LCase(baseArr(k, COL_FIO)) = LCase(searchFIO)) _
+                Or (searchEmail <> "" And LCase(baseArr(k, COL_EMAIL)) = LCase(searchEmail)) Then
+                    
+                    ' копируем строку
+                    For j = 1 To 28
+                        wsEdit.Cells(i, j).Value = baseArr(k, j)
+                    Next j
+                    
+                    found = True
+                    Exit For
+                    
+                End If
+                
+            Next k
+            
+            ' подсветка если не найден
+            If Not found Then
+                wsEdit.Cells(i, COL_ID).Interior.Color = RGB(255, 200, 200)
+            Else
+                wsEdit.Cells(i, COL_ID).Interior.ColorIndex = 0
+            End If
+            
+        End If
+        
+    Next i
+    
+    wbDB.Close False
+    
+    Application.ScreenUpdating = True
+    
+    MsgBox "Данные загружены!"
+    
+End Sub
+
+
+
+
+
+
+
+
+
 Sub UpdateStatuses_NoReplace()
 
     Dim wbSource As Workbook, wbTarget As Workbook
