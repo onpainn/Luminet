@@ -1,97 +1,44 @@
-Sub ЗаписатьЛог(ID As Variant, FIO As String, Dept As String, Status As String)
+
+Sub ЗаписатьДанныеЕслиНетСегодня(ID As String, val1 As Variant, val2 As Variant, val3 As Variant, val4 As Variant)
 
     Dim wsLog As Worksheet
+    Dim lastRow As Long
+    Dim j As Long
     Dim todayStr As String
-    Dim foundDate As Range
-    Dim insertRow As Long
-
+    Dim existsToday As Boolean
+    
     Set wsLog = ThisWorkbook.Sheets("Отработанные ID")
     
     todayStr = Format(Date, "dd.mm.yyyy")
-
-    ' ищем дату
-    Set foundDate = wsLog.Columns(1).Find(todayStr, LookAt:=xlWhole)
-
-    If foundDate Is Nothing Then
-        
-        ' новая дата в начало
-        wsLog.Rows(1).Insert Shift:=xlDown
-        wsLog.Cells(1, 1).Value = todayStr
-        wsLog.Cells(1, 1).Font.Bold = True
-        
-        insertRow = 2
-        
-    Else
-        
-        ' ищем конец блока
-        insertRow = foundDate.Row + 1
-        
-        Do While wsLog.Cells(insertRow, 1).Value <> ""
-            insertRow = insertRow + 1
-        Loop
-        
-    End If
-
-    ' вставляем строку
-    wsLog.Rows(insertRow).Insert Shift:=xlDown
-
-    ' записываем данные
-    wsLog.Cells(insertRow, 1).Value = ID
-    wsLog.Cells(insertRow, 2).Value = FIO
-    wsLog.Cells(insertRow, 3).Value = Dept
-    wsLog.Cells(insertRow, 4).Value = Status
-
-End Sub
-
-Sub ЗаписатьЛог(ID As Variant, FIO As String, Dept As String, Status As String)
-
-    Dim wsLog As Worksheet
-    Dim todayStr As String
-    Dim foundDate As Range
-    Dim insertRow As Long
-    Dim checkRow As Long
-
-    Set wsLog = ThisWorkbook.Sheets("Отработанные ID")
+    lastRow = wsLog.Cells(wsLog.Rows.Count, 1).End(xlUp).Row
     
-    todayStr = Format(Date, "dd.mm.yyyy")
-
-    ' ищем дату (начиная со 2 строки)
-    Set foundDate = wsLog.Range("A2:A" & wsLog.Rows.Count).Find(todayStr, LookAt:=xlWhole)
-
-    If foundDate Is Nothing Then
+    existsToday = False
+    
+    ' 🔥 проверка дубля за сегодня
+    For j = 2 To lastRow
         
-        ' 🔥 ВСТАВЛЯЕМ НОВУЮ ДАТУ В СТРОКУ 2 (под шапкой)
-        wsLog.Rows(2).Insert Shift:=xlDown
-        wsLog.Cells(2, 1).Value = todayStr
-        wsLog.Cells(2, 1).Font.Bold = True
-        
-        insertRow = 3
-        
-    Else
-        
-        ' 🔥 ПРОВЕРКА НА ДУБЛЬ
-        checkRow = foundDate.Row + 1
-        
-        Do While wsLog.Cells(checkRow, 1).Value <> ""
+        If Format(wsLog.Cells(j, 1).Value, "dd.mm.yyyy") = todayStr _
+        And wsLog.Cells(j, 2).Value = ID Then
             
-            If wsLog.Cells(checkRow, 1).Value = ID Then
-                Exit Sub ' уже есть
-            End If
+            existsToday = True
+            Exit For
             
-            checkRow = checkRow + 1
-        Loop
+        End If
         
-        insertRow = checkRow
+    Next j
+    
+    ' 🔥 если нет — записываем
+    If Not existsToday Then
+        
+        lastRow = lastRow + 1
+        
+        wsLog.Cells(lastRow, 1).Value = Date
+        wsLog.Cells(lastRow, 2).Value = ID
+        wsLog.Cells(lastRow, 3).Value = val1
+        wsLog.Cells(lastRow, 4).Value = val2
+        wsLog.Cells(lastRow, 5).Value = val3
+        wsLog.Cells(lastRow, 6).Value = val4
         
     End If
-
-    ' вставляем строку под датой
-    wsLog.Rows(insertRow).Insert Shift:=xlDown
-
-    ' записываем данные
-    wsLog.Cells(insertRow, 1).Value = ID
-    wsLog.Cells(insertRow, 2).Value = FIO
-    wsLog.Cells(insertRow, 3).Value = Dept
-    wsLog.Cells(insertRow, 4).Value = Status
 
 End Sub
