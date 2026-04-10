@@ -1,3 +1,25 @@
+Function ЕстьЗаполненные(ParamArray cells() As Variant) As Boolean
+
+    Dim c As Variant
+    
+    For Each c In cells
+        If Trim(c.Value) <> "" Then
+            ЕстьЗаполненные = True
+            Exit Function
+        End If
+    Next c
+    
+    MsgBox "Введите ID", vbExclamation
+    ЕстьЗаполненные = False
+
+End Function
+
+
+
+
+
+
+
 Sub СохранитьДанные()
 
     Dim wsBase As Worksheet, wsEdit As Worksheet, wsLog As Worksheet
