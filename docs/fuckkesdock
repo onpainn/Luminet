@@ -1,0 +1,194 @@
+Option Explicit
+
+Dim RemindersShown As Object
+
+' =========================
+' NORMALIZE TIME
+' =========================
+Function NormTime(v As Variant) As String
+    If IsDate(v) Then
+        NormTime = Format(CDate(v), "HH:MM")
+    Else
+        NormTime = Format(Trim(v), "HH:MM")
+    End If
+End Function
+
+' =========================
+' NORMALIZE DATE
+' =========================
+Function NormDate(v As Variant) As String
+    If IsDate(v) Then
+        NormDate = Format(CDate(v), "dd.mm.yyyy")
+    Else
+        NormDate = Trim(LCase(v))
+    End If
+End Function
+
+' =========================
+' WEEKDAY NAME
+' =========================
+Function GetWeekDayName(d As Date) As String
+    Select Case Weekday(d, vbMonday)
+        Case 1: GetWeekDayName = "понедельник"
+        Case 2: GetWeekDayName = "вторник"
+        Case 3: GetWeekDayName = "среда"
+        Case 4: GetWeekDayName = "четверг"
+        Case 5: GetWeekDayName = "пятница"
+        Case 6: GetWeekDayName = "суббота"
+        Case 7: GetWeekDayName = "воскресенье"
+    End Select
+End Function
+
+' =========================
+' MAIN LOOP
+' =========================
+Sub CheckReminders()
+
+    Dim ws As Worksheet
+    Set ws = ThisWorkbook.Sheets(1)
+
+    If RemindersShown Is Nothing Then
+        Set RemindersShown = CreateObject("Scripting.Dictionary")
+    End If
+
+    Dim lastRow As Long
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+
+    Dim currentDate As String
+    Dim currentTime As String
+    Dim currentWeekDay As String
+
+    currentDate = Format(Date, "dd.mm.yyyy")
+    currentTime = Format(Time, "HH:MM")
+    currentWeekDay = GetWeekDayName(Date)
+
+    Dim i As Long
+
+    For i = 2 To lastRow
+
+        Dim taskName As String
+        Dim ruleDate As String
+        Dim ruleTime As String
+
+        taskName = ws.Cells(i, "D").Value
+        ruleDate = LCase(Trim(ws.Cells(i, "K").Value))
+        ruleTime = ws.Cells(i, "L").Value
+
+        ' =========================
+        ' SKIP EMPTY ROWS
+        ' =========================
+        If Trim(ws.Cells(i, "A").Value) = "" Then GoTo NextRow
+
+        ' =========================
+        ' MUTE COLUMN
+        ' =========================
+        If Trim(ws.Cells(i, "M").Value) = "+" Then GoTo NextRow
+
+        ruleTime = NormTime(ruleTime)
+
+        ' =========================
+        ' EVERY DAY
+        ' =========================
+        If InStr(ruleDate, "каждый день") > 0 Then
+            Call Fire(taskName, i, currentDate, currentTime)
+        End If
+
+        ' =========================
+        ' WEEKLY
+        ' =========================
+        If InStr(ruleDate, "каждую неделю") > 0 Then
+
+            Dim part As String
+            part = Replace(ruleDate, "каждую неделю", "")
+
+            Dim arr() As String
+            arr = Split(part, ",")
+
+            Dim d As Variant
+            For Each d In arr
+                If Trim(d) = currentWeekDay Then
+                    Call Fire(taskName, i, currentDate, currentTime)
+                    Exit For
+                End If
+            Next d
+
+        End If
+
+        ' =========================
+        ' MONTHLY
+        ' =========================
+        If InStr(ruleDate, "каждый месяц") > 0 Then
+
+            Dim dayNum As String
+            dayNum = Trim(Replace(ruleDate, "каждый месяц", ""))
+
+            If IsNumeric(dayNum) Then
+                If Day(Date) = CInt(dayNum) Then
+                    Call Fire(taskName, i, currentDate, currentTime)
+                End If
+            End If
+
+        End If
+
+        ' =========================
+        ' DATE LIST
+        ' =========================
+        If InStr(ruleDate, ".") > 0 Then
+
+            Dim arrD() As String
+            arrD = Split(ruleDate, ",")
+
+            Dim arrT() As String
+            arrT = Split(ruleTime, ",")
+
+            Dim idx As Long
+
+            For idx = 0 To UBound(arrD)
+
+                If NormDate(arrD(idx)) = currentDate Then
+
+                    If UBound(arrT) = 0 Then
+                        Call Fire(taskName, i, currentDate, currentTime)
+                        Exit For
+                    Else
+                        If idx <= UBound(arrT) Then
+                            If NormTime(arrT(idx)) = currentTime Then
+                                Call Fire(taskName, i, currentDate, currentTime)
+                            End If
+                        End If
+                    End If
+
+                End If
+
+            Next idx
+
+        End If
+
+NextRow:
+    Next i
+
+End Sub
+
+' =========================
+' FIRE NOTIFICATION (ANTI DUPLICATE)
+' =========================
+Sub Fire(taskName As String, rowIndex As Long, currentDate As String, currentTime As String)
+
+    Dim key As String
+    key = rowIndex & "_" & currentDate & "_" & currentTime
+
+    If RemindersShown Is Nothing Then
+        Set RemindersShown = CreateObject("Scripting.Dictionary")
+    End If
+
+    If Not RemindersShown.Exists(key) Then
+
+        RemindersShown.Add key, True
+
+        MsgBox "⏰ Напоминание!" & vbCrLf & _
+               "Задача: " & taskName & vbCrLf & _
+               "Строка: " & rowIndex
+
+    End If
+
+End Sub
