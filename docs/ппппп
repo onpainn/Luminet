@@ -1,0 +1,51 @@
+If InStr(ruleDate, ".") > 0 Then
+
+    Dim arrD() As String
+    Dim arrT() As String
+
+    arrD = Split(ruleDate, ",")
+    arrT = Split(ruleTime, ",")
+
+    Dim idx As Long
+    Dim t As Variant
+
+    ' === 1 ДАТА ===
+    If UBound(arrD) = 0 Then
+
+        If Trim(arrD(0)) = currentDate Then
+
+            For Each t In arrT
+                Call CheckSmart(taskName, i, Trim(t), currentTime)
+            Next t
+
+        End If
+
+    ' === НЕСКОЛЬКО ДАТ ===
+    Else
+
+        For idx = 0 To UBound(arrD)
+
+            If Trim(arrD(idx)) = currentDate Then
+
+                ' одно время → всем датам
+                If UBound(arrT) = 0 Then
+                    Call CheckSmart(taskName, i, Trim(arrT(0)), currentTime)
+
+                ' равное количество → по индексам
+                ElseIf UBound(arrT) = UBound(arrD) Then
+                    Call CheckSmart(taskName, i, Trim(arrT(idx)), currentTime)
+
+                ' иначе → все времена
+                Else
+                    For Each t In arrT
+                        Call CheckSmart(taskName, i, Trim(t), currentTime)
+                    Next t
+                End If
+
+            End If
+
+        Next idx
+
+    End If
+
+End If
