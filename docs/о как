@@ -1,0 +1,15 @@
+Dim arrT() As String
+Dim t As Variant
+Dim tEvent As Date
+
+arrT = Split(eventTime, ",")
+
+For Each t In arrT
+
+    tEvent = TimeValue(Trim(t))
+
+    If Abs(DateDiff("n", Time, tEvent)) = 0 Then
+        Call Notify(taskName, rowIndex, Trim(t), "ВОВРЕМЯ")
+    End If
+
+Next t
