@@ -1,3 +1,13 @@
+If MsgBox("Открыть ссылку?", vbYesNo) = vbYes Then
+    Dim link As String
+    link = ThisWorkbook.Sheets(1).Cells(rowIndex, "D").Hyperlinks(1).Address
+    ThisWorkbook.FollowHyperlink link
+End If
+
+
+
+
+
 If InStr(ruleDate, ".") > 0 Then
 
     Dim arrD() As String
