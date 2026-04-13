@@ -1,39 +1,73 @@
-Dim sections() As String
-Dim i As Long
-Dim blockText As String
+Sub ProcessWordFile(filePath As String, fileName As String, ws As Worksheet, ByRef resRow As Long)
 
-sections = Split(wdDoc.Content.Text, "§")
-
-blockText = ""
-
-For Each key In dict.Keys
+    Dim wdDoc As Object
+    Dim key As Variant
+    Dim data As String
+    Dim parts() As String
     
-    If InStr(cleanDoc, key) > 0 Then
-        
-        For i = 0 To UBound(sections)
-            
-            If InStr(CleanID(sections(i)), key) > 0 Then
-                
-                blockText = sections(i)
-                
-                Exit For
-                
-            End If
-            
-        Next i
-        
-        ws.Cells(resRow, 1).Value = parts(0)
-        ws.Cells(resRow, 2).Value = parts(1)
-        ws.Cells(resRow, 3).Value = blockText
-        ws.Cells(resRow, 4).Value = fileName
-        
-        resRow = resRow + 1
-        
-    End If
+    Dim cleanDoc As String
+    Dim sections() As String
+    Dim i As Long
+    Dim blockText As String
     
-Next key
+    On Error Resume Next
+    
+    Set wdDoc = wdApp.Documents.Open(filePath, ReadOnly:=True, AddToRecentFiles:=False)
+    If wdDoc Is Nothing Then Exit Sub
 
+    ' =========================
+    ' ЧИСТЫЙ ТЕКСТ
+    ' =========================
+    cleanDoc = CleanID(wdDoc.Content.Text)
 
+    ' =========================
+    ' РАЗБИВАЕМ ПО §
+    ' =========================
+    sections = Split(wdDoc.Content.Text, "§")
+
+    ' =========================
+    ' ПОИСК ПО ID ВНУТРИ БЛОКОВ
+    ' =========================
+    For Each key In dict.Keys
+        
+        If InStr(cleanDoc, key) > 0 Then
+            
+            data = dict(key)
+            parts = Split(data, "|")
+            
+            blockText = ""
+            
+            ' ищем блок, где есть ID
+            For i = 0 To UBound(sections)
+                
+                If InStr(CleanID(sections(i)), key) > 0 Then
+                    
+                    blockText = Trim(sections(i))
+                    Exit For
+                    
+                End If
+                
+            Next i
+            
+            ' =========================
+            ' ЗАПИСЬ В EXCEL
+            ' =========================
+            
+            ws.Cells(resRow, 1).Value = parts(0) ' ФИО
+            ws.Cells(resRow, 2).Value = parts(1) ' ID
+            ws.Cells(resRow, 3).Value = blockText ' ТОЛЬКО БЛОК §
+            ws.Cells(resRow, 4).Value = fileName
+            
+            resRow = resRow + 1
+            
+        End If
+        
+    Next key
+
+    wdDoc.Close False
+    Set wdDoc = Nothing
+
+End Sub
 
 
 
