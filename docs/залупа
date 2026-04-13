@@ -1,0 +1,73 @@
+Sub ProcessWordFile(filePath As String, fileName As String, ws As Worksheet, ByRef resRow As Long)
+
+    Dim wdDoc As Object
+    Dim key As Variant
+    Dim data As String
+    Dim parts() As String
+    
+    Dim docText As String
+    Dim fioText As String
+    
+    Dim lastName As String
+    Dim firstName As String
+    Dim patronymic As String
+    
+    On Error Resume Next
+    
+    Set wdDoc = wdApp.Documents.Open(filePath, ReadOnly:=True, AddToRecentFiles:=False)
+    If wdDoc Is Nothing Then Exit Sub
+    
+    docText = LCase(wdDoc.Content.Text)
+
+    For Each key In dict.Keys
+        
+        If InStr(docText, key) > 0 Then
+            
+            data = dict(key)
+            parts = Split(data, "|")
+            
+            If UBound(parts) < 2 Then GoTo NextKey
+            
+            lastName = LCase(parts(0))
+            firstName = LCase(parts(1))
+            
+            If UBound(parts) >= 2 Then
+                patronymic = LCase(parts(2))
+            Else
+                patronymic = ""
+            End If
+            
+            ' =========================
+            ' УМНАЯ ПРОВЕРКА ФИО
+            ' =========================
+            
+            ' 1. фамилия обязательна (уже есть через key)
+            
+            ' 2. имя обязательно
+            If InStr(docText, firstName) = 0 Then GoTo NextKey
+            
+            ' 3. отчество если есть — проверяем строго
+            If patronymic <> "" Then
+                If InStr(docText, patronymic) = 0 Then GoTo NextKey
+            End If
+            
+            ' =========================
+            ' ЗАПИСЬ В EXCEL
+            ' =========================
+            
+            ws.Cells(resRow, 1).Value = parts(0) ' ФИО
+            ws.Cells(resRow, 2).Value = parts(3) ' ID
+            ws.Cells(resRow, 3).Value = docText   ' весь текст
+            ws.Cells(resRow, 4).Value = fileName
+            
+            resRow = resRow + 1
+            
+        End If
+
+NextKey:
+    Next key
+    
+    wdDoc.Close False
+    Set wdDoc = Nothing
+
+End Sub
