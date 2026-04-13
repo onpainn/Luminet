@@ -7,6 +7,205 @@ Sub RunSearch()
 
     Dim wbEmp As Workbook, wsEmp As Worksheet
     Dim wbRes As Workbook, wsRes As Worksheet
+    
+    Dim lastRow As Long, i As Long
+    
+    Dim fio As String, id As String, category As String
+    Dim arr() As String
+    Dim lastName As String, firstName As String
+    
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    ' =========================
+    ' 1. БАЗА СОТРУДНИКОВ
+    ' =========================
+    
+    Set wbEmp = Workbooks.Open("D:\employees.xlsx")
+    Set wsEmp = wbEmp.Sheets(1)
+    
+    lastRow = wsEmp.Cells(wsEmp.Rows.Count, "C").End(xlUp).Row
+    
+    For i = 2 To lastRow
+        
+        category = LCase(Trim(wsEmp.Cells(i, "B").Value))
+        
+        ' ❗ берём только "рабочие"
+        If InStr(category, "рабоч") = 0 Then GoTo NextI
+        
+        fio = LCase(Trim(wsEmp.Cells(i, "C").Value))
+        id = wsEmp.Cells(i, "E").Value
+        
+        arr = Split(fio, " ")
+        
+        If UBound(arr) >= 1 Then
+            
+            lastName = arr(0)
+            firstName = arr(1)
+            
+            ' ключ = фамилия
+            If Not dict.exists(lastName) Then
+                dict.Add lastName, lastName & "|" & firstName & "|" & fio & "|" & id
+            End If
+            
+        End If
+
+NextI:
+    Next i
+    
+    wbEmp.Close False
+    
+    ' =========================
+    ' 2. ФАЙЛ РЕЗУЛЬТАТА
+    ' =========================
+    
+    Set wbRes = Workbooks.Open("D:\result.xlsx")
+    Set wsRes = wbRes.Sheets(1)
+    
+    Dim resRow As Long
+    resRow = wsRes.Cells(wsRes.Rows.Count, 1).End(xlUp).Row + 1
+    
+    ' =========================
+    ' 3. WORD (ОДИН РАЗ)
+    ' =========================
+    
+    Set wdApp = CreateObject("Word.Application")
+    wdApp.Visible = False
+    
+    ' =========================
+    ' 4. ОБХОД ПАПКИ
+    ' =========================
+    
+    ProcessFolder "D:\Docs\", wsRes, resRow
+    
+    ' =========================
+    ' 5. ЗАВЕРШЕНИЕ
+    ' =========================
+    
+    wdApp.Quit
+    
+    wbRes.Save
+    wbRes.Close
+    
+    Application.ScreenUpdating = True
+    
+    MsgBox "Готово!"
+
+End Sub
+
+
+' =========================
+' РЕКУРСИЯ ПАПОК
+' =========================
+Sub ProcessFolder(path As String, ws As Worksheet, ByRef resRow As Long)
+
+    Dim fso As Object
+    Dim folder As Object, subfolder As Object, file As Object
+    
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set folder = fso.GetFolder(path)
+    
+    For Each file In folder.Files
+        If LCase(file.Name) Like "*.doc*" Then
+            ProcessWordFile file.Path, file.Name, ws, resRow
+        End If
+    Next file
+    
+    For Each subfolder In folder.SubFolders
+        ProcessFolder subfolder.Path, ws, resRow
+    Next subfolder
+
+End Sub
+
+
+' =========================
+' ОБРАБОТКА WORD
+' =========================
+Sub ProcessWordFile(filePath As String, fileName As String, ws As Worksheet, ByRef resRow As Long)
+
+    Dim wdDoc As Object
+    Dim text As String
+    
+    Dim key As Variant
+    Dim data As String
+    Dim parts() As String
+    
+    Dim lastName As String
+    Dim firstName As String
+    Dim fio As String
+    Dim id As String
+    
+    On Error Resume Next
+    
+    Set wdDoc = wdApp.Documents.Open(filePath, ReadOnly:=True, AddToRecentFiles:=False)
+    If wdDoc Is Nothing Then Exit Sub
+    
+    text = LCase(wdDoc.Content.Text)
+    
+    ' =========================
+    ' ПОИСК
+    ' =========================
+    
+    For Each key In dict.Keys
+        
+        ' 1. ищем фамилию
+        If InStr(text, key) > 0 Then
+            
+            data = dict(key)
+            parts = Split(data, "|")
+            
+            lastName = parts(0)
+            firstName = parts(1)
+            fio = parts(2)
+            id = parts(3)
+            
+            ' 2. уточняем имя
+            If InStr(text, firstName) > 0 Then
+                
+                ws.Cells(resRow, 1).Value = fio
+                ws.Cells(resRow, 2).Value = id
+                ws.Cells(resRow, 3).Value = text
+                ws.Cells(resRow, 4).Value = fileName
+                
+                resRow = resRow + 1
+                
+            End If
+            
+        End If
+        
+    Next key
+    
+    wdDoc.Close False
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Option Explicit
+
+Dim dict As Object
+Dim wdApp As Object
+
+Sub RunSearch()
+
+    Dim wbEmp As Workbook, wsEmp As Worksheet
+    Dim wbRes As Workbook, wsRes As Worksheet
     Dim lastRow As Long, i As Long
     
     Dim fio As String, id As String
