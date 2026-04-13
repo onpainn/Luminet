@@ -1,3 +1,256 @@
+Option Explicit
+
+Dim dict As Object
+Dim wdApp As Object
+
+' =========================
+' ЧИСТКА ID (для поиска)
+' =========================
+Function CleanID(txt As String) As String
+    
+    txt = LCase(txt)
+    
+    txt = Replace(txt, " ", "")
+    txt = Replace(txt, Chr(160), "")
+    txt = Replace(txt, vbTab, "")
+    txt = Replace(txt, vbCr, "")
+    txt = Replace(txt, vbLf, "")
+    
+    txt = Replace(txt, "-", "")
+    txt = Replace(txt, "–", "")
+    txt = Replace(txt, "—", "")
+    
+    CleanID = txt
+
+End Function
+
+
+' =========================
+' ФОРМАТ ID ДЛЯ EXCEL
+' =========================
+Function FormatID(txt As String) As String
+    
+    Dim clean As String
+    clean = CleanID(txt)
+    
+    Dim i As Long
+    Dim letters As String
+    Dim numbers As String
+    Dim ch As String
+    
+    For i = 1 To Len(clean)
+        
+        ch = Mid(clean, i, 1)
+        
+        If (ch >= "A" And ch <= "Z") Or (ch >= "a" And ch <= "z") _
+        Or (ch >= "А" And ch <= "Я") Or (ch >= "а" And ch <= "я") Then
+            letters = letters & ch
+        End If
+        
+        If ch >= "0" And ch <= "9" Then
+            numbers = numbers & ch
+        End If
+        
+    Next i
+    
+    If letters <> "" And numbers <> "" Then
+        FormatID = UCase(letters) & "-" & numbers
+    Else
+        FormatID = UCase(clean)
+    End If
+
+End Function
+
+
+' =========================
+' СТАРТ
+' =========================
+Sub RunSearch()
+
+    Dim wbEmp As Workbook, wsEmp As Worksheet
+    Dim wbRes As Workbook, wsRes As Worksheet
+    
+    Dim lastRow As Long, i As Long
+    Dim fio As String, category As String, id As String
+    
+    Dim resRow As Long
+    
+    Application.ScreenUpdating = False
+    
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    ' =========================
+    ' БАЗА СОТРУДНИКОВ
+    ' =========================
+    Set wbEmp = Workbooks.Open("D:\employees.xlsx")
+    Set wsEmp = wbEmp.Sheets(1)
+    
+    lastRow = wsEmp.Cells(wsEmp.Rows.Count, "C").End(xlUp).Row
+
+    For i = 2 To lastRow
+        
+        category = LCase(Trim(wsEmp.Cells(i, "B").Value))
+        If InStr(category, "рабоч") = 0 Then GoTo NextI
+        
+        fio = Trim(wsEmp.Cells(i, "C").Value)
+        id = CleanID(wsEmp.Cells(i, "E").Value)
+        
+        If id = "" Then GoTo NextI
+        
+        If Not dict.exists(id) Then
+            dict.Add id, fio & "|" & wsEmp.Cells(i, "E").Value
+        End If
+
+NextI:
+    Next i
+    
+    wbEmp.Close False
+
+    ' =========================
+    ' ФАЙЛ РЕЗУЛЬТАТА
+    ' =========================
+    Set wbRes = Workbooks.Open("D:\result.xlsx")
+    Set wsRes = wbRes.Sheets(1)
+    
+    resRow = wsRes.Cells(wsRes.Rows.Count, 1).End(xlUp).Row + 1
+
+    ' =========================
+    ' WORD APP
+    ' =========================
+    Set wdApp = CreateObject("Word.Application")
+    wdApp.Visible = False
+
+    ProcessFolder "D:\Docs\", wsRes, resRow
+
+    wdApp.Quit
+    wbRes.Save
+    wbRes.Close
+
+    Application.ScreenUpdating = True
+
+    MsgBox "Готово!"
+
+End Sub
+
+
+' =========================
+' ПАПКИ РЕКУРСИВНО
+' =========================
+Sub ProcessFolder(path As String, ws As Worksheet, ByRef resRow As Long)
+
+    Dim fso As Object
+    Dim folder As Object, subfolder As Object, file As Object
+    
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set folder = fso.GetFolder(path)
+
+    For Each file In folder.Files
+        If LCase(file.Name) Like "*.doc*" Then
+            ProcessWordFile file.Path, file.Name, ws, resRow
+        End If
+    Next file
+
+    For Each subfolder In folder.SubFolders
+        ProcessFolder subfolder.Path, ws, resRow
+    Next subfolder
+
+End Sub
+
+
+' =========================
+' WORD ОБРАБОТКА
+' =========================
+Sub ProcessWordFile(filePath As String, fileName As String, ws As Worksheet, ByRef resRow As Long)
+
+    Dim wdDoc As Object
+    Dim sections() As String
+    
+    Dim key As Variant
+    Dim data As String
+    Dim parts() As String
+    
+    Dim i As Long
+    Dim outputText As String
+    Dim searchText As String
+    
+    On Error Resume Next
+    
+    Set wdDoc = wdApp.Documents.Open(filePath, ReadOnly:=True)
+    If wdDoc Is Nothing Then Exit Sub
+
+    ' =========================
+    ' делим по §
+    ' =========================
+    sections = Split(wdDoc.Content.Text, "§")
+
+    ' =========================
+    ' поиск по ID
+    ' =========================
+    For Each key In dict.Keys
+        
+        data = dict(key)
+        parts = Split(data, "|")
+        
+        For i = 0 To UBound(sections)
+            
+            outputText = sections(i)
+            searchText = CleanID(outputText)
+            
+            If InStr(searchText, key) > 0 Then
+                
+                ws.Cells(resRow, 1).Value = parts(0)
+                ws.Cells(resRow, 2).Value = FormatID(parts(1))
+                ws.Cells(resRow, 3).Value = outputText
+                ws.Cells(resRow, 4).Value = fileName
+                
+                ws.Cells(resRow, 3).WrapText = True
+                
+                resRow = resRow + 1
+                
+            End If
+            
+        Next i
+        
+    Next key
+
+    wdDoc.Close False
+    Set wdDoc = Nothing
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Dim fullText As String
 Dim i As Long
 
