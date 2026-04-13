@@ -3,6 +3,50 @@ Function FormatID(txt As String) As String
     Dim clean As String
     clean = CleanID(txt)
     
+    Dim i As Long
+    Dim letters As String
+    Dim numbers As String
+    Dim ch As String
+    
+    For i = 1 To Len(clean)
+        
+        ch = Mid(clean, i, 1)
+        
+        ' ЛАТИНИЦА
+        If (ch >= "A" And ch <= "Z") Or (ch >= "a" And ch <= "z") Then
+            letters = letters & ch
+        End If
+        
+        ' КИРИЛЛИЦА
+        If (ch >= "А" And ch <= "Я") Or (ch >= "а" And ch <= "я") Then
+            letters = letters & ch
+        End If
+        
+        ' ЦИФРЫ
+        If ch >= "0" And ch <= "9" Then
+            numbers = numbers & ch
+        End If
+        
+    Next i
+    
+    If letters <> "" And numbers <> "" Then
+        FormatID = UCase(letters) & "-" & numbers
+    Else
+        FormatID = UCase(clean)
+    End If
+
+End Function
+
+
+
+
+
+
+Function FormatID(txt As String) As String
+    
+    Dim clean As String
+    clean = CleanID(txt)
+    
     ' если уже есть дефис — просто возвращаем
     If InStr(txt, "-") > 0 Then
         FormatID = UCase(txt)
