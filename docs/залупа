@@ -1,3 +1,30 @@
+Function FixText(txt As String) As String
+    
+    ' переносы
+    txt = Replace(txt, vbCrLf, vbLf)
+    txt = Replace(txt, vbCr, vbLf)
+    txt = Replace(txt, Chr(11), vbLf)
+    
+    ' ВАЖНО: исправляем пробелы
+    txt = Replace(txt, Chr(160), " ") ' неразрывный пробел
+    txt = Replace(txt, Chr(9), " ")   ' таб
+    
+    ' убираем двойные пробелы
+    Do While InStr(txt, "  ") > 0
+        txt = Replace(txt, "  ", " ")
+    Loop
+    
+    FixText = txt
+
+End Function
+
+
+
+
+
+
+
+
 Option Explicit
 
 Dim dict As Object
