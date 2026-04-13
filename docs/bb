@@ -1,3 +1,89 @@
+Dim wdDoc As Object
+Dim text As String
+Dim i As Long
+
+Dim topText As String
+Dim afterText As String
+Dim found As Boolean
+
+On Error Resume Next
+
+Set wdDoc = wdApp.Documents.Open(filePath, ReadOnly:=True, AddToRecentFiles:=False)
+If wdDoc Is Nothing Then Exit Sub
+
+text = LCase(wdDoc.Content.Text)
+
+For Each key In dict.Keys
+
+    If InStr(text, key) > 0 Then
+        
+        Dim data As String
+        Dim parts() As String
+        
+        data = dict(key)
+        parts = Split(data, "|")
+        
+        If UBound(parts) < 3 Then GoTo NextKey
+        
+        ' =========================
+        ' 1. ПЕРВЫЕ 10 СТРОК
+        ' =========================
+        topText = ""
+        
+        For i = 1 To wdDoc.Paragraphs.Count
+            topText = topText & wdDoc.Paragraphs(i).Range.Text & vbCrLf
+            If i >= 10 Then Exit For
+        Next i
+        
+        ' =========================
+        ' 2. ТЕКСТ ПОСЛЕ ФАМИЛИИ
+        ' =========================
+        afterText = ""
+        found = False
+        
+        For i = 1 To wdDoc.Paragraphs.Count
+            
+            If InStr(LCase(wdDoc.Paragraphs(i).Range.Text), key) > 0 Then
+                found = True
+                GoTo NextPara
+            End If
+            
+NextPara:
+            
+            If found Then
+                
+                ' стоп если пустая строка (двойной Enter)
+                If Trim(wdDoc.Paragraphs(i).Range.Text) = "" Then Exit For
+                
+                afterText = afterText & wdDoc.Paragraphs(i).Range.Text & vbCrLf
+                
+            End If
+            
+        Next i
+        
+        ' =========================
+        ' 3. ЗАПИСЬ В EXCEL
+        ' =========================
+        
+        ws.Cells(resRow, 1).Value = parts(2)   ' ФИО
+        ws.Cells(resRow, 2).Value = parts(3)   ' ID
+        ws.Cells(resRow, 3).Value = LCase(topText & vbCrLf & afterText)
+        ws.Cells(resRow, 4).Value = fileName
+        
+        resRow = resRow + 1
+        
+    End If
+
+NextKey:
+Next key
+
+wdDoc.Close False
+Set wdDoc = Nothing
+
+
+
+
+
 
 
 Option Explicit
