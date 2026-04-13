@@ -1,3 +1,25 @@
+If result = vbYes Then
+
+    With ThisWorkbook.Sheets(1)
+
+        ' снять защиту (если есть пароль — впиши)
+        On Error Resume Next
+        .Unprotect Password:=""
+        On Error GoTo 0
+
+        .Cells(rowIndex, "M").Value = "+"
+
+        ' вернуть защиту
+        .Protect Password:="", UserInterfaceOnly:=True
+
+    End With
+
+End If
+
+
+
+
+
 If MsgBox("Открыть ссылку?", vbYesNo) = vbYes Then
     Dim link As String
     link = ThisWorkbook.Sheets(1).Cells(rowIndex, "D").Hyperlinks(1).Address
