@@ -1,3 +1,45 @@
+Function FormatID(txt As String) As String
+    
+    Dim clean As String
+    clean = CleanID(txt)
+    
+    ' если уже есть дефис — просто возвращаем
+    If InStr(txt, "-") > 0 Then
+        FormatID = UCase(txt)
+        Exit Function
+    End If
+    
+    ' ищем буквы и цифры
+    Dim i As Long
+    Dim letters As String, numbers As String
+    
+    For i = 1 To Len(clean)
+        If Mid(clean, i, 1) Like "[A-Za-z]" Then
+            letters = letters & Mid(clean, i, 1)
+        ElseIf Mid(clean, i, 1) Like "[0-9]" Then
+            numbers = numbers & Mid(clean, i, 1)
+        End If
+    Next i
+    
+    If letters <> "" And numbers <> "" Then
+        FormatID = UCase(letters & "-" & numbers)
+    Else
+        FormatID = UCase(clean)
+    End If
+
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
 Sub ProcessWordFile(filePath As String, fileName As String, ws As Worksheet, ByRef resRow As Long)
 
     Dim wdDoc As Object
