@@ -1,3 +1,20 @@
+Dim fullText As String
+Dim i As Long
+
+fullText = ""
+
+For i = 1 To wdDoc.Paragraphs.Count
+    fullText = fullText & wdDoc.Paragraphs(i).Range.Text & vbLf
+Next i
+
+sections = Split(fullText, "§")
+
+
+
+
+
+
+
 Function FixText(txt As String) As String
     
     ' переносы
