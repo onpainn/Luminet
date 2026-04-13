@@ -1,3 +1,49 @@
+Dim sections() As String
+Dim i As Long
+Dim blockText As String
+
+sections = Split(wdDoc.Content.Text, "§")
+
+blockText = ""
+
+For Each key In dict.Keys
+    
+    If InStr(cleanDoc, key) > 0 Then
+        
+        For i = 0 To UBound(sections)
+            
+            If InStr(CleanID(sections(i)), key) > 0 Then
+                
+                blockText = sections(i)
+                
+                Exit For
+                
+            End If
+            
+        Next i
+        
+        ws.Cells(resRow, 1).Value = parts(0)
+        ws.Cells(resRow, 2).Value = parts(1)
+        ws.Cells(resRow, 3).Value = blockText
+        ws.Cells(resRow, 4).Value = fileName
+        
+        resRow = resRow + 1
+        
+    End If
+    
+Next key
+
+
+
+
+
+
+
+
+
+
+
+
 Option Explicit
 
 Dim dict As Object
