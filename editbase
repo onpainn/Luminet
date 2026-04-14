@@ -1,7 +1,8 @@
-Format(currentDate, "dd") & "\" & _
-Format(currentDate, "mm") & "\" & _
-Format(currentDate, "yyyy") & "\" & _
-(countToday + 1)
+wsTarget.Cells(lastRowTarget, 3).Value = _
+    Format(currentDate, "dd") & "\" & _
+    Format(currentDate, "mm") & "\" & _
+    Format(currentDate, "yyyy") & "\" & _
+    (countToday + 1)
 
 
 
