@@ -1,0 +1,112 @@
+Sub SaveToMainBase()
+
+    Dim wbSource As Workbook
+    Dim wbTarget As Workbook
+    Dim wsSource As Worksheet
+    Dim wsTarget As Worksheet
+    
+    Dim lastRowSource As Long
+    Dim lastRowTarget As Long
+    Dim i As Long
+    
+    Dim basePath As String
+    basePath = "C:\БАЗА\MainBase.xlsx" ' <-- УКАЖИ СВОЙ ПУТЬ
+    
+    On Error GoTo ErrorHandler
+    
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    
+    Set wbSource = ThisWorkbook
+    Set wsSource = wbSource.Sheets(1)
+    
+    ' --- Пытаемся открыть базу
+    On Error Resume Next
+    Set wbTarget = Workbooks.Open(basePath, ReadOnly:=False)
+    
+    If wbTarget Is Nothing Then
+        MsgBox "Не удалось открыть базу! Возможно файл уже открыт другим пользователем.", vbCritical
+        GoTo SafeExit
+    End If
+    On Error GoTo ErrorHandler
+    
+    Set wsTarget = wbTarget.Sheets(1)
+    
+    ' Последние строки
+    lastRowSource = wsSource.Cells(wsSource.Rows.Count, 2).End(xlUp).Row
+    lastRowTarget = wsTarget.Cells(wsTarget.Rows.Count, 2).End(xlUp).Row
+    
+    ' --- Основной цикл
+    For i = 2 To lastRowSource
+    
+        If wsSource.Cells(i, 2).Value <> "" Then
+        
+            lastRowTarget = lastRowTarget + 1
+            
+            ' Копируем строку (B:J)
+            wsTarget.Range(wsTarget.Cells(lastRowTarget, 2), wsTarget.Cells(lastRowTarget, 10)).Value = _
+                wsSource.Range(wsSource.Cells(i, 2), wsSource.Cells(i, 10)).Value
+            
+            ' --- Нумерация (A)
+            wsTarget.Cells(lastRowTarget, 1).Value = lastRowTarget - 1
+            
+            ' --- Работа с датой
+            Dim currentDate As Date
+            Dim countToday As Long
+            Dim j As Long
+            
+            If IsDate(wsSource.Cells(i, 3).Value) Then
+                currentDate = wsSource.Cells(i, 3).Value
+            Else
+                MsgBox "Ошибка в строке " & i & ": некорректная дата", vbExclamation
+                GoTo SkipRow
+            End If
+            
+            countToday = 0
+            
+            For j = 2 To lastRowTarget - 1
+                
+                If wsTarget.Cells(j, 3).Value <> "" Then
+                    
+                    If InStr(wsTarget.Cells(j, 3).Value, "\") > 0 Then
+                        ' уже форматированная дата
+                        If Left(wsTarget.Cells(j, 3).Value, 10) = Format(currentDate, "dd\mm\yyyy") Then
+                            countToday = countToday + 1
+                        End If
+                    ElseIf IsDate(wsTarget.Cells(j, 3).Value) Then
+                        If Format(wsTarget.Cells(j, 3).Value, "dd.mm.yyyy") = Format(currentDate, "dd.mm.yyyy") Then
+                            countToday = countToday + 1
+                        End If
+                    End If
+                    
+                End If
+                
+            Next j
+            
+            wsTarget.Cells(lastRowTarget, 3).Value = _
+                Format(currentDate, "dd\mm\yyyy") & "\" & (countToday + 1)
+        
+        End If
+        
+SkipRow:
+    Next i
+    
+    ' --- Сохраняем базу
+    wbTarget.Save
+    wbTarget.Close
+    
+    ' --- Очищаем введённые данные
+    wsSource.Rows("2:" & lastRowSource).ClearContents
+    
+    MsgBox "Данные успешно перенесены и очищены!", vbInformation
+
+SafeExit:
+    Application.ScreenUpdating = True
+    Application.EnableEvents = True
+    Exit Sub
+
+ErrorHandler:
+    MsgBox "Произошла ошибка: " & Err.Description, vbCritical
+    Resume SafeExit
+
+End Sub
