@@ -1,3 +1,17 @@
+' 1. Вставляем значения
+wsTarget.Range(wsTarget.Cells(lastRowTarget, 2), wsTarget.Cells(lastRowTarget, 10)).Value = _
+    wsSource.Range(wsSource.Cells(i, 2), wsSource.Cells(i, 10)).Value
+
+' 2. Копируем формат (включая бордеры) с предыдущей строки
+If lastRowTarget > 2 Then
+    wsTarget.Range(wsTarget.Cells(lastRowTarget - 1, 2), wsTarget.Cells(lastRowTarget - 1, 10)).Copy
+    wsTarget.Range(wsTarget.Cells(lastRowTarget, 2), wsTarget.Cells(lastRowTarget, 10)).PasteSpecial Paste:=xlPasteFormats
+End If
+
+Application.CutCopyMode = False
+
+
+
 wsTarget.Cells(lastRowTarget, 3).Value = _
     Format(currentDate, "dd") & "\" & _
     Format(currentDate, "mm") & "\" & _
