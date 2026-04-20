@@ -1,0 +1,36 @@
+Private Sub UserForm_Initialize()
+
+    Dim imgPath As String
+    imgPath = ThisWorkbook.Path & "\loading.png"
+    
+    Me.Image1.Picture = LoadPicture(imgPath)
+
+End Sub
+
+Sub WaitSeconds(seconds As Double)
+
+    Dim startTime As Double
+    startTime = Timer
+
+    Do While Timer - startTime < seconds
+        DoEvents
+    Loop
+
+End Sub
+
+Sub MyMainCode()
+
+    ' 1. показать окно
+    frmLoading.Show vbModeless
+    DoEvents
+
+    ' 2. твой код
+    Call DoSomething
+
+    ' 3. подождать 5 секунд
+    WaitSeconds 5
+
+    ' 4. закрыть окно
+    Unload frmLoading
+
+End Sub
