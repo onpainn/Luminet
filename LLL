@@ -1,3 +1,145 @@
+Sub MIX_COLUMN_AND_TEXT()
+
+    Dim wbS As Workbook, wbT As Workbook
+    Dim wsS As Worksheet, wsT As Worksheet
+    
+    Dim dataArr As Variant, resultArr As Variant
+    Dim map As Variant
+    
+    Dim lastRow As Long, lastCol As Long
+    Dim i As Long, j As Long, r As Long
+    
+    Dim v As Variant
+    
+    ' -------------------------
+    ' ПУТИ
+    ' -------------------------
+    Dim sourcePath As String, targetPath As String
+    sourcePath = "C:\Files\Database.xlsx"
+    targetPath = "C:\Files\Work.xlsx"
+    
+    ' -------------------------
+    ' МАППИНГ (ГЛАВНОЕ)
+    ' -------------------------
+    ' ЧИСЛО = колонка
+    ' ТЕКСТ = фиксированное значение
+    map = Array( _
+        Array(1, ""), _
+        Array(2, ""), _
+        Array(3, ""), _
+        Array("Ozon", ""), _
+        Array(5, ""), _
+        Array("Активный", ""), _
+        Array(6, "") _
+    )
+    
+    ' -------------------------
+    ' УСКОРЕНИЕ
+    ' -------------------------
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    ' -------------------------
+    ' ОТКРЫТИЕ
+    ' -------------------------
+    Set wbS = Workbooks.Open(sourcePath, ReadOnly:=True)
+    Set wbT = Workbooks.Open(targetPath)
+    
+    Set wsS = wbS.Sheets(1)
+    Set wsT = wbT.Sheets(1)
+    
+    ' -------------------------
+    ' ДАННЫЕ
+    ' -------------------------
+    lastRow = wsS.Cells(wsS.Rows.Count, 1).End(xlUp).Row
+    lastCol = wsS.Cells(1, wsS.Columns.Count).End(xlToLeft).Column
+    
+    dataArr = wsS.Range(wsS.Cells(2, 1), wsS.Cells(lastRow, lastCol)).Value
+    
+    ' -------------------------
+    ' СЧЁТ "+"
+    ' -------------------------
+    r = 0
+    
+    For i = 1 To UBound(dataArr, 1)
+        If dataArr(i, 13) = "+" Then
+            r = r + 1
+        End If
+    Next i
+    
+    If r = 0 Then GoTo ExitSub
+    
+    ' -------------------------
+    ' РЕЗУЛЬТАТ
+    ' -------------------------
+    ReDim resultArr(1 To r, 1 To UBound(map) + 1)
+    
+    r = 0
+    
+    For i = 1 To UBound(dataArr, 1)
+        
+        If dataArr(i, 13) = "+" Then
+            
+            r = r + 1
+            
+            resultArr(r, 1) = r ' нумерация
+            
+            For j = 0 To UBound(map)
+                
+                v = map(j)(0)
+                
+                If IsNumeric(v) Then
+                    ' 👉 берём из колонки
+                    resultArr(r, j + 2) = dataArr(i, v)
+                Else
+                    ' 👉 фиксированный текст
+                    resultArr(r, j + 2) = v
+                End If
+                
+            Next j
+            
+        End If
+        
+    Next i
+    
+    ' -------------------------
+    ' ЗАПИСЬ
+    ' -------------------------
+    wsT.Rows("2:" & wsT.Rows.Count).ClearContents
+    
+    wsT.Cells(2, 1).Resize(r, UBound(map) + 2).Value = resultArr
+
+ExitSub:
+
+    wbS.Close False
+    wbT.Save
+    wbT.Close
+    
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    
+    MsgBox "Готово"
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Sub FINAL_SYNC()
 
     Dim wbS As Workbook, wbT As Workbook
