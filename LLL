@@ -1,3 +1,85 @@
+Sub SIMPLE_UPDATE()
+
+    Dim wbSource As Workbook
+    Dim wbTarget As Workbook
+    Dim wsSource As Worksheet
+    Dim wsTarget As Worksheet
+    
+    Dim sourcePath As String
+    Dim targetPath As String
+    
+    Dim lastRow As Long
+    Dim targetRow As Long
+    Dim i As Long, j As Long
+    
+    ' -----------------------------
+    ' НАСТРОЙКИ
+    ' -----------------------------
+    sourcePath = "C:\Files\Database.xlsx"
+    targetPath = "C:\Files\Work.xlsx"
+    
+    ' 13 нужных колонок (измени под себя)
+    Dim cols As Variant
+    cols = Array(1,2,3,4,5,6,7,8,9,10,11,12,13)
+    
+    ' -----------------------------
+    ' ОТКРЫВАЕМ ФАЙЛЫ
+    ' -----------------------------
+    Set wbSource = Workbooks.Open(sourcePath)
+    Set wbTarget = Workbooks.Open(targetPath)
+    
+    Set wsSource = wbSource.Sheets(1)
+    Set wsTarget = wbTarget.Sheets(1)
+    
+    ' -----------------------------
+    ' ОЧИЩАЕМ СТАРЫЕ ДАННЫЕ (ниже шапки)
+    ' -----------------------------
+    wsTarget.Rows("4:" & wsTarget.Rows.Count).ClearContents
+    
+    ' -----------------------------
+    ' ПОСЛЕДНЯЯ СТРОКА В БД
+    ' -----------------------------
+    lastRow = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
+    
+    ' начинаем запись с 4 строки
+    targetRow = 4
+    
+    ' -----------------------------
+    ' ОСНОВНОЙ ЦИКЛ
+    ' -----------------------------
+    For i = 2 To lastRow
+        
+        ' проверка колонки M (13 колонка)
+        If wsSource.Cells(i, 13).Value = "+" Then
+            
+            For j = 0 To UBound(cols)
+                wsTarget.Cells(targetRow, j + 1).Value = _
+                wsSource.Cells(i, cols(j)).Value
+            Next j
+            
+            targetRow = targetRow + 1
+            
+        End If
+        
+    Next i
+    
+    ' -----------------------------
+    ' СОХРАНЕНИЕ
+    ' -----------------------------
+    wbTarget.Save
+    wbSource.Close False
+    wbTarget.Close
+    
+    MsgBox "Обновление завершено!"
+    
+End Sub
+
+
+
+
+
+
+
 Sub FULL_PROCESS()
 
     Dim wbSource As Workbook
