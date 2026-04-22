@@ -1,0 +1,167 @@
+Sub FULL_PROCESS()
+
+    Dim wbSource As Workbook
+    Dim wbTarget As Workbook
+    Dim wsSource As Worksheet
+    Dim wsTemp As Worksheet
+    Dim wsOld As Worksheet
+    Dim wsResult As Worksheet
+    
+    Dim sourcePath As String
+    Dim targetPath As String
+    
+    Dim lastRow As Long, i As Long, j As Long
+    Dim tempRow As Long
+    
+    Dim dictOld As Object
+    Dim dictNew As Object
+    Dim key As String
+    
+    ' -----------------------------
+    ' НАСТРОЙКИ
+    ' -----------------------------
+    sourcePath = "C:\Files\Database.xlsx"
+    targetPath = "C:\Files\Work.xlsx"
+    
+    Dim cols As Variant
+    cols = Array(1,2,3,4,5,6,7,8,9,10,11,12,13)
+    
+    ' -----------------------------
+    ' ОТКРЫВАЕМ ФАЙЛЫ
+    ' -----------------------------
+    Set wbSource = Workbooks.Open(sourcePath)
+    Set wbTarget = Workbooks.Open(targetPath)
+    
+    Set wsSource = wbSource.Sheets(1)
+    
+    ' Временный лист NEW
+    On Error Resume Next
+    Set wsTemp = wbTarget.Sheets("NEW")
+    If wsTemp Is Nothing Then
+        Set wsTemp = wbTarget.Sheets.Add
+        wsTemp.Name = "NEW"
+    End If
+    On Error GoTo 0
+    
+    wsTemp.Cells.Clear
+    
+    ' -----------------------------
+    ' ФИЛЬТРАЦИЯ (+) И ПЕРЕНОС В NEW
+    ' -----------------------------
+    lastRow = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
+    tempRow = 2
+    
+    For i = 2 To lastRow
+        
+        If wsSource.Cells(i, 13).Value = "+" Then
+            
+            For j = 0 To UBound(cols)
+                wsTemp.Cells(tempRow, j + 1).Value = _
+                wsSource.Cells(i, cols(j)).Value
+            Next j
+            
+            tempRow = tempRow + 1
+            
+        End If
+        
+    Next i
+    
+    ' -----------------------------
+    ' ЛИСТ OLD (предыдущее состояние)
+    ' -----------------------------
+    On Error Resume Next
+    Set wsOld = wbTarget.Sheets("OLD")
+    If wsOld Is Nothing Then
+        Set wsOld = wbTarget.Sheets.Add
+        wsOld.Name = "OLD"
+    End If
+    On Error GoTo 0
+    
+    ' -----------------------------
+    ' СОЗДАЕМ СЛОВАРИ
+    ' -----------------------------
+    Set dictOld = CreateObject("Scripting.Dictionary")
+    Set dictNew = CreateObject("Scripting.Dictionary")
+    
+    Dim lastOld As Long, lastNew As Long
+    
+    lastOld = wsOld.Cells(wsOld.Rows.Count, "A").End(xlUp).Row
+    lastNew = wsTemp.Cells(wsTemp.Rows.Count, "A").End(xlUp).Row
+    
+    ' OLD
+    For i = 2 To lastOld
+        key = wsOld.Cells(i, 1).Value
+        If key <> "" Then dictOld(key) = i
+    Next i
+    
+    ' NEW
+    For i = 2 To lastNew
+        key = wsTemp.Cells(i, 1).Value
+        If key <> "" Then dictNew(key) = i
+    Next i
+    
+    ' -----------------------------
+    ' ЛИСТ С ДАТОЙ
+    ' -----------------------------
+    Dim sheetName As String
+    sheetName = Format(Date, "dd.mm.yyyy")
+    
+    On Error Resume Next
+    Set wsResult = wbTarget.Sheets(sheetName)
+    If wsResult Is Nothing Then
+        Set wsResult = wbTarget.Sheets.Add
+        wsResult.Name = sheetName
+    End If
+    On Error GoTo 0
+    
+    ' -----------------------------
+    ' ЗАПИСЬ НОВЫХ (с 4 строки)
+    ' -----------------------------
+    Dim addRow As Long
+    addRow = wsResult.Cells(wsResult.Rows.Count, "A").End(xlUp).Row + 1
+    If addRow < 4 Then addRow = 4
+    
+    For Each key In dictNew.Keys
+        If Not dictOld.exists(key) Then
+            
+            wsResult.Cells(addRow, 1).Value = key
+            wsResult.Cells(addRow, 2).Value = "ПРИШЕЛ"
+            
+            addRow = addRow + 1
+            
+        End If
+    Next key
+    
+    ' -----------------------------
+    ' УШЕДШИЕ (с отступом +5 строк)
+    ' -----------------------------
+    Dim leaveRow As Long
+    leaveRow = addRow + 5
+    
+    For Each key In dictOld.Keys
+        If Not dictNew.exists(key) Then
+            
+            wsResult.Cells(leaveRow, 1).Value = key
+            wsResult.Cells(leaveRow, 2).Value = "УШЕЛ"
+            
+            leaveRow = leaveRow + 1
+            
+        End If
+    Next key
+    
+    ' -----------------------------
+    ' ОБНОВЛЯЕМ OLD = NEW
+    ' -----------------------------
+    wsOld.Cells.Clear
+    wsTemp.Cells.Copy wsOld.Cells(1, 1)
+    
+    ' -----------------------------
+    ' СОХРАНЕНИЕ
+    ' -----------------------------
+    wbTarget.Save
+    wbSource.Close False
+    wbTarget.Close
+    
+    MsgBox "Готово!"
+    
+End Sub
