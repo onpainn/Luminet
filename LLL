@@ -1,3 +1,152 @@
+Sub FINAL_POSITION_MAPPING()
+
+    Dim wbS As Workbook, wbT As Workbook
+    Dim wsS As Worksheet, wsT As Worksheet
+    
+    Dim dataArr As Variant
+    Dim dict As Object
+    
+    Dim lastRow As Long, lastCol As Long
+    Dim i As Long, r As Long
+    
+    Dim sourcePath As String, targetPath As String
+    
+    ' -------------------------
+    ' ПУТИ
+    ' -------------------------
+    sourcePath = "C:\Files\Database.xlsx"
+    targetPath = "C:\Files\Work.xlsx"
+    
+    ' -------------------------
+    ' МАППИНГ РЕЗУЛЬТАТА
+    ' (куда → что)
+    ' -------------------------
+    ' формат:
+    ' Array(позиция_в_результате, "тип", значение)
+    '
+    ' тип = "col" или "text"
+    '
+    Dim map As Variant
+    map = Array( _
+        Array(1, "counter", 0), _
+        Array(2, "col", 2), _
+        Array(3, "text", "Ozon"), _
+        Array(4, "col", 5), _
+        Array(5, "text", "Активный") _
+    )
+    
+    ' -------------------------
+    ' УСКОРЕНИЕ
+    ' -------------------------
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    ' -------------------------
+    ' ОТКРЫТИЕ
+    ' -------------------------
+    Set wbS = Workbooks.Open(sourcePath, ReadOnly:=True)
+    Set wbT = Workbooks.Open(targetPath)
+    
+    Set wsS = wbS.Sheets(1)
+    Set wsT = wbT.Sheets(1)
+    
+    ' -------------------------
+    ' ЧТЕНИЕ
+    ' -------------------------
+    lastRow = wsS.Cells(wsS.Rows.Count, 1).End(xlUp).Row
+    lastCol = wsS.Cells(1, wsS.Columns.Count).End(xlToLeft).Column
+    
+    dataArr = wsS.Range(wsS.Cells(2, 1), wsS.Cells(lastRow, lastCol)).Value
+    
+    ' -------------------------
+    ' СЧЁТ "+"
+    ' -------------------------
+    r = 0
+    
+    For i = 1 To UBound(dataArr, 1)
+        If dataArr(i, 13) = "+" Then
+            r = r + 1
+        End If
+    Next i
+    
+    If r = 0 Then GoTo ExitSub
+    
+    ' -------------------------
+    ' РЕЗУЛЬТАТ
+    ' -------------------------
+    Dim resultArr() As Variant
+    ReDim resultArr(1 To r, 1 To UBound(map) + 1)
+    
+    r = 0
+    
+    For i = 1 To UBound(dataArr, 1)
+        
+        If dataArr(i, 13) = "+" Then
+            
+            r = r + 1
+            
+            Dim j As Long
+            
+            For j = 0 To UBound(map)
+                
+                Select Case map(j)(1)
+                    
+                    Case "counter"
+                        resultArr(r, map(j)(0)) = r
+                    
+                    Case "col"
+                        resultArr(r, map(j)(0)) = dataArr(i, map(j)(2))
+                    
+                    Case "text"
+                        resultArr(r, map(j)(0)) = map(j)(2)
+                    
+                End Select
+                
+            Next j
+            
+        End If
+        
+    Next i
+    
+    ' -------------------------
+    ' ЗАПИСЬ
+    ' -------------------------
+    wsT.Rows("2:" & wsT.Rows.Count).ClearContents
+    
+    wsT.Cells(2, 1).Resize(r, UBound(map) + 1).Value = resultArr
+
+ExitSub:
+
+    wbS.Close False
+    wbT.Save
+    wbT.Close
+    
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    
+    MsgBox "Готово"
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 If IsNumeric(v) Then
     If v >= 1 And v <= UBound(dataArr, 2) Then
         resultArr(r, j + 2) = dataArr(i, CLng(v))
