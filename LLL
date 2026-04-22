@@ -1,3 +1,15 @@
+If IsNumeric(v) Then
+    If v >= 1 And v <= UBound(dataArr, 2) Then
+        resultArr(r, j + 2) = dataArr(i, CLng(v))
+    End If
+Else
+    resultArr(r, j + 2) = v
+End If
+
+
+
+
+
 Sub MIX_COLUMN_AND_TEXT()
 
     Dim wbS As Workbook, wbT As Workbook
