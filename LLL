@@ -1,3 +1,137 @@
+Sub FAST_COPY_PLUS_COLUMNS()
+
+    Dim wbSource As Workbook
+    Dim wbTarget As Workbook
+    Dim wsSource As Worksheet
+    Dim wsTarget As Worksheet
+    
+    Dim sourcePath As String
+    Dim targetPath As String
+    
+    Dim dataArr As Variant
+    Dim resultArr As Variant
+    
+    Dim lastRow As Long, lastCol As Long
+    Dim i As Long, j As Long
+    Dim countRows As Long
+    
+    ' -----------------------------
+    ' ПУТИ
+    ' -----------------------------
+    sourcePath = "C:\Files\Database.xlsx"
+    targetPath = "C:\Files\Work.xlsx"
+    
+    ' -----------------------------
+    ' НУЖНЫЕ КОЛОНКИ (13 штук)
+    ' -----------------------------
+    Dim cols As Variant
+    cols = Array(1, 2, 3, 5, 6, 8, 9, 10, 12, 13, 15, 16, 18)
+    
+    ' -----------------------------
+    ' УСКОРЕНИЕ
+    ' -----------------------------
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    ' -----------------------------
+    ' ОТКРЫВАЕМ
+    ' -----------------------------
+    Set wbSource = Workbooks.Open(sourcePath, ReadOnly:=True)
+    Set wbTarget = Workbooks.Open(targetPath)
+    
+    Set wsSource = wbSource.Sheets(1)
+    Set wsTarget = wbTarget.Sheets(1)
+    
+    ' -----------------------------
+    ' ГРАНИЦЫ
+    ' -----------------------------
+    lastRow = wsSource.Cells(wsSource.Rows.Count, 1).End(xlUp).Row
+    lastCol = wsSource.Cells(1, wsSource.Columns.Count).End(xlToLeft).Column
+    
+    ' -----------------------------
+    ' ЧИТАЕМ В МАССИВ
+    ' -----------------------------
+    dataArr = wsSource.Range(wsSource.Cells(2, 1), wsSource.Cells(lastRow, lastCol)).Value
+    
+    ' -----------------------------
+    ' СЧИТАЕМ СКОЛЬКО СТРОК С "+"
+    ' колонка M = 13
+    ' -----------------------------
+    countRows = 0
+    For i = 1 To UBound(dataArr, 1)
+        If dataArr(i, 13) = "+" Then
+            countRows = countRows + 1
+        End If
+    Next i
+    
+    ' если нет данных
+    If countRows = 0 Then
+        wsTarget.Rows("2:" & wsTarget.Rows.Count).ClearContents
+        MsgBox "Нет строк с +"
+        GoTo ExitSub
+    End If
+    
+    ' -----------------------------
+    ' СОЗДАЕМ РЕЗУЛЬТИРУЮЩИЙ МАССИВ
+    ' -----------------------------
+    ReDim resultArr(1 To countRows, 1 To UBound(cols) + 1)
+    
+    ' -----------------------------
+    ' ЗАПОЛНЯЕМ
+    ' -----------------------------
+    Dim r As Long
+    r = 1
+    
+    For i = 1 To UBound(dataArr, 1)
+        If dataArr(i, 13) = "+" Then
+            
+            For j = 0 To UBound(cols)
+                resultArr(r, j + 1) = dataArr(i, cols(j))
+            Next j
+            
+            r = r + 1
+        End If
+    Next i
+    
+    ' -----------------------------
+    ' ОЧИЩАЕМ (кроме шапки)
+    ' -----------------------------
+    wsTarget.Rows("2:" & wsTarget.Rows.Count).ClearContents
+    
+    ' -----------------------------
+    ' ВСТАВЛЯЕМ
+    ' -----------------------------
+    wsTarget.Cells(2, 1).Resize(UBound(resultArr, 1), UBound(resultArr, 2)).Value = resultArr
+    
+    ' -----------------------------
+    ' ЗАКРЫТИЕ
+    ' -----------------------------
+    wbTarget.Save
+    wbSource.Close False
+    wbTarget.Close
+    
+ExitSub:
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    
+    MsgBox "Готово (быстро + фильтр + колонки)"
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
 Sub FAST_COPY_COLUMNS()
 
     Dim wbSource As Workbook
