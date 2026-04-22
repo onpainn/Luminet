@@ -1,3 +1,131 @@
+Sub FINAL_SYNC()
+
+    Dim wbS As Workbook, wbT As Workbook
+    Dim wsS As Worksheet, wsT As Worksheet
+    
+    Dim dataArr As Variant, resultArr As Variant
+    Dim cols As Variant
+    
+    Dim lastRow As Long, lastCol As Long
+    Dim i As Long, j As Long, r As Long
+    
+    Dim sourcePath As String, targetPath As String
+    
+    ' -------------------------
+    ' ПУТИ
+    ' -------------------------
+    sourcePath = "C:\Files\Database.xlsx"
+    targetPath = "C:\Files\Work.xlsx"
+    
+    ' -------------------------
+    ' НУЖНЫЕ КОЛОНКИ (13 шт)
+    ' -------------------------
+    cols = Array(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
+    
+    ' -------------------------
+    ' УСКОРЕНИЕ
+    ' -------------------------
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    ' -------------------------
+    ' ОТКРЫТИЕ ФАЙЛОВ
+    ' -------------------------
+    Set wbS = Workbooks.Open(sourcePath, ReadOnly:=True)
+    Set wbT = Workbooks.Open(targetPath)
+    
+    Set wsS = wbS.Sheets(1)
+    Set wsT = wbT.Sheets(1)
+    
+    ' -------------------------
+    ' ЧТЕНИЕ БД
+    ' -------------------------
+    lastRow = wsS.Cells(wsS.Rows.Count, 1).End(xlUp).Row
+    lastCol = wsS.Cells(1, wsS.Columns.Count).End(xlToLeft).Column
+    
+    dataArr = wsS.Range(wsS.Cells(2, 1), wsS.Cells(lastRow, lastCol)).Value
+    
+    ' -------------------------
+    ' СЧИТАЕМ "+"
+    ' -------------------------
+    r = 0
+    
+    For i = 1 To UBound(dataArr, 1)
+        If dataArr(i, 13) = "+" Then
+            r = r + 1
+        End If
+    Next i
+    
+    If r = 0 Then GoTo ExitSub
+    
+    ' -------------------------
+    ' МАССИВ РЕЗУЛЬТАТА
+    ' -------------------------
+    ReDim resultArr(1 To r, 1 To UBound(cols) + 2)
+    
+    r = 0
+    
+    For i = 1 To UBound(dataArr, 1)
+        
+        If dataArr(i, 13) = "+" Then
+            
+            r = r + 1
+            
+            ' нумерация
+            resultArr(r, 1) = r
+            
+            For j = 0 To UBound(cols)
+                resultArr(r, j + 2) = dataArr(i, cols(j))
+            Next j
+            
+        End If
+        
+    Next i
+    
+    ' -------------------------
+    ' ОЧИСТКА (только данные)
+    ' -------------------------
+    wsT.Rows("2:" & wsT.Rows.Count).ClearContents
+    
+    ' -------------------------
+    ' ЗАПИСЬ
+    ' -------------------------
+    wsT.Cells(2, 1).Resize(UBound(resultArr, 1), UBound(resultArr, 2)).Value = resultArr
+
+ExitSub:
+
+    ' -------------------------
+    ' ЗАКРЫТИЕ
+    ' -------------------------
+    wbS.Close False
+    wbT.Save
+    wbT.Close
+    
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    
+    MsgBox "Обновление завершено"
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Sub FAST_COPY_PLUS_COLUMNS()
 
     Dim wbSource As Workbook
