@@ -1,3 +1,232 @@
+Sub FINAL_FIXED_SYSTEM_SAFE()
+
+    Dim wbS As Workbook, wbT As Workbook, wbR As Workbook
+    Dim wsS As Worksheet, wsT As Worksheet, wsR As Worksheet
+    
+    Dim dataArr As Variant, oldArr As Variant
+    Dim dictNew As Object, dictOld As Object
+    
+    Dim lastRow As Long, lastCol As Long
+    Dim i As Long, j As Long
+    
+    Dim sourcePath As String, workPath As String, templatePath As String
+    
+    ' -------------------------
+    ' ПУТИ
+    ' -------------------------
+    sourcePath = "C:\Files\Database.xlsx"
+    workPath = "C:\Files\Work.xlsx"
+    templatePath = "C:\Files\Template.xlsx"
+    
+    ' -------------------------
+    ' МАППИНГ (как у тебя)
+    ' -------------------------
+    Dim map As Variant
+    map = Array( _
+        Array(1, "counter", 0), _
+        Array(2, "col", 2), _
+        Array(3, "col", 3), _
+        Array(4, "text", "Ozon"), _
+        Array(5, "col", 5), _
+        Array(6, "text", "Активный") _
+    )
+    
+    ' -------------------------
+    ' УСКОРЕНИЕ
+    ' -------------------------
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    ' -------------------------
+    ' ОТКРЫТИЕ
+    ' -------------------------
+    Set wbS = Workbooks.Open(sourcePath, ReadOnly:=True)
+    Set wbT = Workbooks.Open(workPath)
+    Set wbR = Workbooks.Open(templatePath)
+    
+    Set wsS = wbS.Sheets(1)
+    Set wsT = wbT.Sheets(1)
+    Set wsR = wbR.Sheets(1)
+    
+    ' -------------------------
+    ' НОВЫЙ СПИСОК (БД)
+    ' -------------------------
+    lastRow = wsS.Cells(wsS.Rows.Count, 1).End(xlUp).Row
+    lastCol = wsS.Cells(1, wsS.Columns.Count).End(xlToLeft).Column
+    
+    dataArr = wsS.Range(wsS.Cells(2, 1), wsS.Cells(lastRow, lastCol)).Value
+    
+    Set dictNew = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(dataArr, 1)
+        If dataArr(i, 13) = "+" Then
+            dictNew(Trim(CStr(dataArr(i, 1)))) = i
+        End If
+    Next i
+    
+    ' -------------------------
+    ' СТАРЫЙ СПИСОК (ТОЛЬКО ID + ВСЯ СТРОКА)
+    ' -------------------------
+    lastRow = wsT.Cells(wsT.Rows.Count, 12).End(xlUp).Row
+    
+    oldArr = wsT.Range(wsT.Cells(2, 1), wsT.Cells(lastRow, 12)).Value
+    
+    Set dictOld = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(oldArr, 1)
+        If oldArr(i, 12) <> "" Then
+            dictOld(Trim(CStr(oldArr(i, 12)))) = i
+        End If
+    Next i
+    
+    ' -------------------------
+    ' СРАВНЕНИЕ
+    ' -------------------------
+    Dim arrivals As Collection, departures As Collection
+    Set arrivals = New Collection
+    Set departures = New Collection
+    
+    Dim key As Variant
+    
+    For Each key In dictNew.keys
+        If Not dictOld.exists(key) Then arrivals.Add key
+    Next key
+    
+    For Each key In dictOld.keys
+        If Not dictNew.exists(key) Then departures.Add key
+    Next key
+    
+    ' -------------------------
+    ' ОТЧЁТ
+    ' -------------------------
+    wsR.Range("C14").Value = Date
+    
+    Dim startArr As Long: startArr = 4
+    Dim startDep As Long: startDep = 10
+    
+    Dim rowIndex As Long
+    
+    ' -------------------------
+    ' ❌ УШЛИ (OLD)
+    ' -------------------------
+    For i = departures.Count To 1 Step -1
+        
+        wsR.Rows(startDep).Insert
+        
+        rowIndex = dictOld(departures(i))
+        
+        For j = 0 To UBound(map)
+            
+            Select Case map(j)(1)
+                
+                Case "counter"
+                    wsR.Cells(startDep, map(j)(0)).Value = i
+                
+                Case "col"
+                    ' SAFE: берем из oldArr без map-магии
+                    wsR.Cells(startDep, map(j)(0)).Value = GetOldValue(oldArr, rowIndex, map(j)(2))
+                
+                Case "text"
+                    wsR.Cells(startDep, map(j)(0)).Value = map(j)(2)
+                    
+            End Select
+            
+        Next j
+        
+    Next i
+    
+    ' -------------------------
+    ' ➕ ПРИШЛИ (NEW)
+    ' -------------------------
+    For i = arrivals.Count To 1 Step -1
+        
+        wsR.Rows(startArr).Insert
+        
+        rowIndex = dictNew(arrivals(i))
+        
+        For j = 0 To UBound(map)
+            
+            Select Case map(j)(1)
+                
+                Case "counter"
+                    wsR.Cells(startArr, map(j)(0)).Value = i
+                
+                Case "col"
+                    wsR.Cells(startArr, map(j)(0)).Value = dataArr(rowIndex, map(j)(2))
+                
+                Case "text"
+                    wsR.Cells(startArr, map(j)(0)).Value = map(j)(2)
+                    
+            End Select
+            
+        Next j
+        
+    Next i
+    
+    ' -------------------------
+    ' СОХРАНЕНИЕ
+    ' -------------------------
+    Dim basePath As String: basePath = "C:\Reports\"
+    Dim yearFolder As String, monthFolder As String
+    Dim fullPath As String, fileName As String
+    
+    yearFolder = basePath & Format(Date, "yyyy") & "\"
+    monthFolder = yearFolder & Format(Date, "mm") & "\"
+    
+    If Dir(basePath, vbDirectory) = "" Then MkDir basePath
+    If Dir(yearFolder, vbDirectory) = "" Then MkDir yearFolder
+    If Dir(monthFolder, vbDirectory) = "" Then MkDir monthFolder
+    
+    fileName = Format(Date, "yyyy-mm-dd") & ".xlsx"
+    fullPath = monthFolder & fileName
+    
+    If Dir(fullPath) <> "" Then
+        fileName = Format(Now, "yyyy-mm-dd_hh-mm-ss") & ".xlsx"
+        fullPath = monthFolder & fileName
+    End If
+    
+    wbR.SaveAs fullPath, FileFormat:=xlOpenXMLWorkbook
+    wbR.Close
+    
+    wbS.Close False
+    wbT.Save
+    wbT.Close
+    
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    
+    MsgBox "Готово: " & fullPath
+
+End Sub
+
+' -------------------------
+' БЕЗОПАСНЫЙ ДОСТУП К OLD ARRAY
+' -------------------------
+Private Function GetOldValue(arr As Variant, row As Long, col As Long) As Variant
+    
+    If row <= UBound(arr, 1) And col <= UBound(arr, 2) Then
+        GetOldValue = arr(row, col)
+    Else
+        GetOldValue = ""
+    End If
+
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Sub FINAL_FIXED_SYSTEM()
 
     Dim wbS As Workbook, wbT As Workbook, wbR As Workbook
