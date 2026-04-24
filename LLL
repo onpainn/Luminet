@@ -1,3 +1,225 @@
+Sub FINAL_ACTIVE_SNAPSHOT_SYSTEM()
+
+    Dim wbS As Workbook, wbR As Workbook
+    Dim wbWork As Workbook
+    Dim wsS As Worksheet
+    Dim wsActive As Worksheet, wsSnap As Worksheet, wsR As Worksheet
+    
+    Dim dataArr As Variant
+    Dim activeArr As Variant, snapArr As Variant
+    
+    Dim dictNew As Object, dictOld As Object
+    Dim arrivals As Collection, departures As Collection
+    
+    Dim lastRow As Long, lastCol As Long
+    Dim i As Long, j As Long
+    
+    Dim sourcePath As String, workPath As String, templatePath As String
+    Dim basePath As String, fullPath As String, fileName As String
+    
+    ' -------------------------
+    ' ПУТИ
+    ' -------------------------
+    sourcePath = "C:\Files\Database.xlsx"
+    workPath = "C:\Files\Work.xlsx"
+    templatePath = "C:\Files\Template.xlsx"
+    basePath = "C:\Reports\"
+    
+    ' -------------------------
+    ' MAP (ВОЗВРАЩАЕМ КАК У ТЕБЯ БЫЛО)
+    ' -------------------------
+    Dim map As Variant
+    map = Array( _
+        Array(1, "counter", 0), _
+        Array(2, "col", 2), _
+        Array(3, "col", 3), _
+        Array(4, "text", "Ozon"), _
+        Array(5, "col", 5), _
+        Array(6, "text", "Активный") _
+    )
+    
+    ' -------------------------
+    ' УСКОРЕНИЕ
+    ' -------------------------
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    ' -------------------------
+    ' БД
+    ' -------------------------
+    Set wbS = Workbooks.Open(sourcePath, ReadOnly:=True)
+    Set wsS = wbS.Sheets(1)
+    
+    lastRow = wsS.Cells(wsS.Rows.Count, 1).End(xlUp).Row
+    lastCol = wsS.Cells(1, wsS.Columns.Count).End(xlToLeft).Column
+    
+    dataArr = wsS.Range(wsS.Cells(2, 1), wsS.Cells(lastRow, lastCol)).Value
+    
+    Set dictNew = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(dataArr, 1)
+        If dataArr(i, 13) = "+" Then
+            dictNew(Trim(CStr(dataArr(i, 1)))) = i
+        End If
+    Next i
+    
+    wbS.Close False
+    
+    ' -------------------------
+    ' WORK
+    ' -------------------------
+    Set wbWork = Workbooks.Open(workPath)
+    Set wsActive = wbWork.Sheets("Active")
+    Set wsSnap = wbWork.Sheets("Snapshot")
+    
+    ' SNAPSHOT читаем
+    lastRow = wsSnap.Cells(wsSnap.Rows.Count, 1).End(xlUp).Row
+    If lastRow >= 2 Then
+        snapArr = wsSnap.Range("A2:L" & lastRow).Value
+    End If
+    
+    Set dictOld = CreateObject("Scripting.Dictionary")
+    
+    If Not IsEmpty(snapArr) Then
+        For i = 1 To UBound(snapArr, 1)
+            If snapArr(i, 12) <> "" Then
+                dictOld(Trim(CStr(snapArr(i, 12)))) = True
+            End If
+        Next i
+    End If
+    
+    ' -------------------------
+    ' СРАВНЕНИЕ
+    ' -------------------------
+    Set arrivals = New Collection
+    Set departures = New Collection
+    
+    Dim key As Variant
+    
+    For Each key In dictNew.keys
+        If Not dictOld.exists(key) Then arrivals.Add key
+    Next key
+    
+    For Each key In dictOld.keys
+        If Not dictNew.exists(key) Then departures.Add key
+    Next key
+    
+    ' -------------------------
+    ' ОБНОВЛЕНИЕ ACTIVE
+    ' -------------------------
+    wsActive.Rows("2:" & wsActive.Rows.Count).ClearContents
+    
+    Dim outArr()
+    ReDim outArr(1 To dictNew.Count, 1 To 1)
+    
+    i = 0
+    For Each key In dictNew.keys
+        i = i + 1
+        outArr(i, 1) = key
+    Next key
+    
+    wsActive.Range("A2").Resize(i, 1).Value = outArr
+    
+    ' -------------------------
+    ' ОБНОВЛЕНИЕ SNAPSHOT
+    ' -------------------------
+    wsSnap.Rows("2:" & wsSnap.Rows.Count).ClearContents
+    wsSnap.Range("A2").Resize(i, 1).Value = outArr
+    
+    wbWork.Save
+    wbWork.Close
+    
+    ' -------------------------
+    ' ОТЧЁТ (ШАБЛОН КОПИЯ)
+    ' -------------------------
+    If Dir(basePath, vbDirectory) = "" Then MkDir basePath
+    
+    fileName = "Report_" & Format(Now, "yyyy-mm-dd_hh-mm-ss") & ".xlsx"
+    fullPath = basePath & fileName
+    
+    Set wbR = Workbooks.Open(templatePath)
+    wbR.SaveCopyAs fullPath
+    wbR.Close False
+    
+    Set wbR = Workbooks.Open(fullPath)
+    Set wsR = wbR.Sheets(1)
+    
+    wsR.Range("C14").Value = Date
+    
+    Dim startArr As Long: startArr = 4
+    Dim startDep As Long: startDep = 10
+    
+    ' -------------------------
+    ' ПРИШЛИ (MAP В ДЕЛЕ)
+    ' -------------------------
+    For i = arrivals.Count To 1 Step -1
+        
+        wsR.Rows(startArr).Insert
+        
+        Dim rowIndex As Long
+        rowIndex = dictNew(arrivals(i))
+        
+        For j = 0 To UBound(map)
+            
+            Select Case map(j)(1)
+                
+                Case "counter"
+                    wsR.Cells(startArr, map(j)(0)).Value = i
+                
+                Case "col"
+                    wsR.Cells(startArr, map(j)(0)).Value = dataArr(rowIndex, CLng(map(j)(2)))
+                
+                Case "text"
+                    wsR.Cells(startArr, map(j)(0)).Value = map(j)(2)
+                    
+            End Select
+            
+        Next j
+        
+    Next i
+    
+    ' -------------------------
+    ' УШЛИ (MAP В ДЕЛЕ)
+    ' -------------------------
+    For i = departures.Count To 1 Step -1
+        
+        wsR.Rows(startDep).Insert
+        
+        wsR.Cells(startDep, 1).Value = i
+        wsR.Cells(startDep, 2).Value = departures(i)
+        wsR.Cells(startDep, 3).Value = "УШЁЛ"
+        
+    Next i
+    
+    wbR.Save
+    wbR.Close
+    
+    ' -------------------------
+    ' ФИНАЛ
+    ' -------------------------
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    
+    MsgBox "Готово: " & fullPath
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Sub FINAL_FIXED_SYSTEM_SAFE()
 
     Dim wbS As Workbook, wbT As Workbook, wbTpl As Workbook, wbR As Workbook
