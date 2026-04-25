@@ -32,6 +32,269 @@ Sub FINAL_SYSTEM_CLEAN()
         Array(4, "text", "Ozon"), _
         Array(5, "col", 5), _
         Array(6, "text", "Активный"), _
+        Array(12, "col", 1) _
+    )
+    
+    ' -------------------------
+    ' УСКОРЕНИЕ
+    ' -------------------------
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    ' -------------------------
+    ' ЧИТАЕМ БД
+    ' -------------------------
+    Set wbDB = Workbooks.Open(pathDB, ReadOnly:=True)
+    Set wsDB = wbDB.Sheets(1)
+    
+    lastRow = wsDB.Cells(wsDB.Rows.Count, 1).End(xlUp).Row
+    lastCol = wsDB.Cells(1, wsDB.Columns.Count).End(xlToLeft).Column
+    
+    dataArr = wsDB.Range(wsDB.Cells(2, 1), wsDB.Cells(lastRow, lastCol)).Value
+    
+    Set dictNew = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(dataArr, 1)
+        If dataArr(i, 13) = "+" Then
+            dictNew(Trim(CStr(dataArr(i, 1)))) = i
+        End If
+    Next i
+    
+    wbDB.Close False
+    
+    ' -------------------------
+    ' ЧИТАЕМ WORK (СТАРЫЙ СПИСОК)
+    ' -------------------------
+    Set wbWork = Workbooks.Open(pathWork)
+    Set wsWork = wbWork.Sheets(1)
+    
+    lastRow = wsWork.Cells(wsWork.Rows.Count, 12).End(xlUp).Row
+    
+    If lastRow >= 2 Then
+        oldArr = wsWork.Range("A2:L" & lastRow).Value
+    End If
+    
+    Set dictOld = CreateObject("Scripting.Dictionary")
+    
+    If Not IsEmpty(oldArr) Then
+        For i = 1 To UBound(oldArr, 1)
+            If oldArr(i, 12) <> "" Then
+                dictOld(Trim(CStr(oldArr(i, 12)))) = i
+            End If
+        Next i
+    End If
+    
+    ' -------------------------
+    ' СРАВНЕНИЕ
+    ' -------------------------
+    Set arrivals = New Collection
+    Set departures = New Collection
+    
+    For Each key In dictNew.keys
+        If Not dictOld.exists(key) Then arrivals.Add key
+    Next key
+    
+    For Each key In dictOld.keys
+        If Not dictNew.exists(key) Then departures.Add key
+    Next key
+    
+    ' -------------------------
+    ' ОБНОВЛЯЕМ WORK (через MAP)
+    ' -------------------------
+    Dim outArr()
+    ReDim outArr(1 To dictNew.Count, 1 To 12)
+    
+    i = 0
+    
+    For Each key In dictNew.keys
+        
+        i = i + 1
+        rowIndex = dictNew(key)
+        
+        For j = 0 To UBound(map)
+            
+            Dim val
+            
+            Select Case map(j)(1)
+                
+                Case "counter"
+                    outArr(i, map(j)(0)) = i
+                
+                Case "col"
+                    val = dataArr(rowIndex, CLng(map(j)(2)))
+                    
+                    If IsError(val) Then
+                        outArr(i, map(j)(0)) = ""
+                    Else
+                        outArr(i, map(j)(0)) = val
+                    End If
+                
+                Case "text"
+                    outArr(i, map(j)(0)) = map(j)(2)
+                    
+            End Select
+            
+        Next j
+        
+    Next key
+    
+    wsWork.Rows("2:" & wsWork.Rows.Count).ClearContents
+    wsWork.Range("A2").Resize(dictNew.Count, 12).Value = outArr
+    
+    wbWork.Save
+    wbWork.Close
+    
+    ' -------------------------
+    ' СОЗДАЁМ ОТЧЁТ
+    ' -------------------------
+    Dim yearPath As String, monthPath As String
+    
+    yearPath = basePath & Format(Date, "yyyy") & "\"
+    monthPath = yearPath & Format(Date, "mm") & "\"
+    
+    If Dir(basePath, vbDirectory) = "" Then MkDir basePath
+    If Dir(yearPath, vbDirectory) = "" Then MkDir yearPath
+    If Dir(monthPath, vbDirectory) = "" Then MkDir monthPath
+    
+    Dim fileName As String
+    fileName = Format(Date, "yyyy-mm-dd") & ".xlsx"
+    
+    Set wbRep = Workbooks.Open(pathTemplate)
+    wbRep.SaveCopyAs monthPath & fileName
+    wbRep.Close False
+    
+    Set wbRep = Workbooks.Open(monthPath & fileName)
+    Set wsRep = wbRep.Sheets(1)
+    
+    wsRep.Range("C14").Value = Date
+    
+    ' -------------------------
+    ' УШЛИ
+    ' -------------------------
+    For i = departures.Count To 1 Step -1
+        
+        wsRep.Rows(10).Insert
+        
+        rowIndex = dictOld(departures(i))
+        
+        For j = 0 To UBound(map)
+            
+            Select Case map(j)(1)
+                
+                Case "counter"
+                    wsRep.Cells(10, map(j)(0)).Value = i
+                
+                Case "col"
+                    wsRep.Cells(10, map(j)(0)).Value = oldArr(rowIndex, map(j)(0))
+                
+                Case "text"
+                    wsRep.Cells(10, map(j)(0)).Value = map(j)(2)
+                    
+            End Select
+            
+        Next j
+        
+    Next i
+    
+    ' -------------------------
+    ' ПРИШЛИ
+    ' -------------------------
+    For i = arrivals.Count To 1 Step -1
+        
+        wsRep.Rows(4).Insert
+        
+        rowIndex = dictNew(arrivals(i))
+        
+        For j = 0 To UBound(map)
+            
+            Dim val2
+            
+            Select Case map(j)(1)
+                
+                Case "counter"
+                    wsRep.Cells(4, map(j)(0)).Value = i
+                
+                Case "col"
+                    val2 = dataArr(rowIndex, CLng(map(j)(2)))
+                    
+                    If IsError(val2) Then
+                        wsRep.Cells(4, map(j)(0)).Value = ""
+                    Else
+                        wsRep.Cells(4, map(j)(0)).Value = val2
+                    End If
+                
+                Case "text"
+                    wsRep.Cells(4, map(j)(0)).Value = map(j)(2)
+                    
+            End Select
+            
+        Next j
+        
+    Next i
+    
+    wbRep.Save
+    wbRep.Close
+    
+    ' -------------------------
+    ' ФИНАЛ
+    ' -------------------------
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    
+    MsgBox "Готово"
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sub FINAL_SYSTEM_CLEAN()
+
+    Dim wbDB As Workbook, wbWork As Workbook, wbRep As Workbook
+    Dim wsDB As Worksheet, wsWork As Worksheet, wsRep As Worksheet
+    
+    Dim dataArr As Variant, oldArr As Variant
+    Dim dictNew As Object, dictOld As Object
+    
+    Dim arrivals As Collection, departures As Collection
+    
+    Dim i As Long, j As Long, lastRow As Long, lastCol As Long
+    Dim key As Variant, rowIndex As Long
+    
+    ' -------------------------
+    ' ПУТИ
+    ' -------------------------
+    Dim pathDB As String, pathWork As String, pathTemplate As String, basePath As String
+    
+    pathDB = "C:\Files\Database.xlsx"
+    pathWork = "C:\Files\Work.xlsx"
+    pathTemplate = "C:\Files\Template.xlsx"
+    basePath = "C:\Reports\"
+    
+    ' -------------------------
+    ' MAP
+    ' -------------------------
+    Dim map As Variant
+    map = Array( _
+        Array(1, "counter", 0), _
+        Array(2, "col", 2), _
+        Array(3, "col", 3), _
+        Array(4, "text", "Ozon"), _
+        Array(5, "col", 5), _
+        Array(6, "text", "Активный"), _
         Array(12, "col", 1) ' <-- ID уходит в 12 колонку Work
     )
     
