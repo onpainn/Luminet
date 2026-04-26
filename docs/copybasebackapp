@@ -1,6 +1,58 @@
 Sub СделатьКопиюБазы()
 
     Dim sourcePath As String
+    Dim baseFolder As String
+    Dim yearFolder As String
+    Dim monthFolder As String
+    Dim newFileName As String
+    Dim fullNewPath As String
+    
+    ' 🔴 ПУТЬ К БАЗЕ (укажи свой!)
+    sourcePath = "C:\ПУТЬ\База.xlsx"
+    
+    ' базовая папка рядом с файлом
+    baseFolder = ThisWorkbook.Path & "\Сводка\"
+    
+    ' папка года
+    yearFolder = baseFolder & Format(Date, "yyyy") & "\"
+    
+    ' папка месяца (например 04)
+    monthFolder = yearFolder & Format(Date, "mm") & "\"
+    
+    ' создаём папки по порядку
+    If Dir(baseFolder, vbDirectory) = "" Then MkDir baseFolder
+    If Dir(yearFolder, vbDirectory) = "" Then MkDir yearFolder
+    If Dir(monthFolder, vbDirectory) = "" Then MkDir monthFolder
+    
+    ' имя файла
+    newFileName = "База_" & Format(Date, "dd.mm.yyyy") & ".xlsx"
+    
+    fullNewPath = monthFolder & newFileName
+    
+    ' защита от перезаписи
+    If Dir(fullNewPath) <> "" Then
+        newFileName = "База_" & Format(Now, "dd.mm.yyyy_hh.mm") & ".xlsx"
+        fullNewPath = monthFolder & newFileName
+    End If
+    
+    ' копирование
+    FileCopy sourcePath, fullNewPath
+    
+    MsgBox "Копия базы создана!" & vbCrLf & fullNewPath, vbInformation
+
+End Sub
+
+
+
+
+
+
+
+
+
+Sub СделатьКопиюБазы()
+
+    Dim sourcePath As String
     Dim folderPath As String
     Dim newFileName As String
     Dim fullNewPath As String
