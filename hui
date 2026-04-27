@@ -1,3 +1,9 @@
+=ПРОСМОТР(2;1/('[Файл.xlsx]Лист1'!A:A<>"");'[Файл.xlsx]Лист1'!A:A)+1
+
+
+
+
+
 Private Sub UserForm_Initialize()
 
     Dim imgPath As String
