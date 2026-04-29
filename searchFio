@@ -1,0 +1,105 @@
+Sub ПоказатьПоФИО()
+
+    Dim wbDB As Workbook
+    Dim wsBase As Worksheet, wsEdit As Worksheet
+    
+    Dim baseArr As Variant
+    Dim dictFIO As Object
+    
+    Dim lastRowBase As Long, lastRowEdit As Long
+    Dim i As Long, j As Long, k As Long
+    Dim fio As String
+    
+    Dim writeRow As Long
+    
+    ' ===== НАСТРОЙКИ =====
+    Const COL_FIO_BASE = 2   ' колонка ФИО в базе
+    Const COL_FIO_EDIT = 3   ' колонка C (где вводишь ФИО)
+    Const COL_END = 28
+    
+    Application.ScreenUpdating = False
+    
+    Set wsEdit = ThisWorkbook.Sheets(3)
+    
+    ' =========================
+    ' 🔥 1. СОБИРАЕМ ФИО В СЛОВАРЬ
+    ' =========================
+    
+    Set dictFIO = CreateObject("Scripting.Dictionary")
+    
+    lastRowEdit = wsEdit.Cells(wsEdit.Rows.Count, COL_FIO_EDIT).End(xlUp).Row
+    
+    For i = 10 To lastRowEdit
+        
+        fio = LCase(Trim(wsEdit.Cells(i, COL_FIO_EDIT).Value))
+        
+        If fio <> "" Then
+            If Not dictFIO.exists(fio) Then
+                dictFIO(fio) = True
+            End If
+        End If
+        
+    Next i
+    
+    ' 👉 если ничего не ввели
+    If dictFIO.Count = 0 Then
+        MsgBox "Введите ФИО", vbExclamation
+        Exit Sub
+    End If
+    
+    ' =========================
+    ' 🔥 2. ОТКРЫВАЕМ БАЗУ
+    ' =========================
+    
+    Set wbDB = Workbooks.Open("C:\ПУТЬ\База.xlsx")
+    Set wsBase = wbDB.Sheets(1)
+    
+    ' =========================
+    ' 🔥 3. ГРУЗИМ В МАССИВ
+    ' =========================
+    
+    lastRowBase = wsBase.Cells(wsBase.Rows.Count, 1).End(xlUp).Row
+    baseArr = wsBase.Range(wsBase.Cells(1, 1), wsBase.Cells(lastRowBase, COL_END)).Value
+    
+    ' =========================
+    ' 🔥 4. ОЧИЩАЕМ ВЫВОД
+    ' =========================
+    
+    wsEdit.Rows("10:" & wsEdit.Rows.Count).ClearContents
+    
+    writeRow = 10
+    
+    ' =========================
+    ' 🔥 5. ПОИСК
+    ' =========================
+    
+    For i = 2 To UBound(baseArr, 1)
+        
+        fio = LCase(Trim(baseArr(i, COL_FIO_BASE)))
+        
+        ' 🔥 частичное совпадение
+        For Each k In dictFIO.Keys
+            
+            If InStr(1, fio, k) > 0 Then
+                
+                ' копируем строку
+                For j = 1 To COL_END
+                    wsEdit.Cells(writeRow, j).Value = baseArr(i, j)
+                Next j
+                
+                writeRow = writeRow + 1
+                Exit For
+                
+            End If
+            
+        Next k
+        
+    Next i
+    
+    wbDB.Close False
+    
+    Application.ScreenUpdating = True
+    
+    MsgBox "Поиск по ФИО завершён!"
+    
+End Sub
