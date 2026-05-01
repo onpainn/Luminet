@@ -1,3 +1,33 @@
+Private Function GetDeptGroup(dept As Variant) As String
+
+    Dim d As String
+    d = Trim(LCase(CStr(dept)))
+    
+    Select Case d
+        
+        Case "1", "2", "3", "4"
+            GetDeptGroup = "Производство"
+        
+        Case "финансы"
+            GetDeptGroup = "Финансы"
+        
+        Case "логистика"
+            GetDeptGroup = "Логистика"
+        
+        Case Else
+            GetDeptGroup = "Прочее"
+            
+    End Select
+
+End Function
+
+
+
+
+
+
+
+
 Dim dictAll As Object
 Set dictAll = CreateObject("Scripting.Dictionary")
 
