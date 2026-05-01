@@ -1,3 +1,79 @@
+' -------------------------
+' УШЛИ (через БД + EXT)
+' -------------------------
+For i = departures.Count To 1 Step -1
+    
+    wsRep.Rows(10).Insert
+    
+    Dim dbRow As Long
+    Dim val3
+    Dim emailKey3 As String
+    Dim extRow3 As Long
+    Dim extVal3
+    
+    ' находим строку в БД по ID
+    If dictAll.exists(departures(i)) Then
+        dbRow = dictAll(departures(i))
+    Else
+        GoTo NextDeparture
+    End If
+    
+    For j = 0 To UBound(map)
+        
+        Select Case map(j)(1)
+            
+            Case "counter"
+                wsRep.Cells(10, map(j)(0)).Value = i
+            
+            Case "col"
+                val3 = dataArr(dbRow, CLng(map(j)(2)))
+                
+                If IsError(val3) Then val3 = ""
+                wsRep.Cells(10, map(j)(0)).Value = val3
+            
+            Case "text"
+                wsRep.Cells(10, map(j)(0)).Value = map(j)(2)
+            
+            Case "ext"
+                
+                ' берём email из БД
+                emailKey3 = Trim(LCase(dataArr(dbRow, 4))) ' <-- ПРОВЕРЬ колонку email
+                
+                If emailKey3 <> "" Then
+                    
+                    If dictExt.exists(emailKey3) Then
+                        
+                        extRow3 = dictExt(emailKey3)
+                        extVal3 = extArr(extRow3, CLng(map(j)(2)))
+                        
+                        If IsError(extVal3) Then extVal3 = ""
+                        wsRep.Cells(10, map(j)(0)).Value = extVal3
+                        
+                    Else
+                        wsRep.Cells(10, map(j)(0)).Value = ""
+                    End If
+                    
+                Else
+                    wsRep.Cells(10, map(j)(0)).Value = ""
+                End If
+                
+        End Select
+        
+    Next j
+
+NextDeparture:
+Next i
+
+
+
+
+
+
+
+
+
+
+
 Sub FINAL_SYSTEM_FULL_WITH_EMAIL()
 
     Dim wbDB As Workbook, wbWork As Workbook, wbRep As Workbook, wbExt As Workbook
