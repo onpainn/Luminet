@@ -1,3 +1,9 @@
+Dim dictAll As Object
+Set dictAll = CreateObject("Scripting.Dictionary")
+
+For i = 1 To UBound(dataArr, 1)
+    dictAll(Trim(CStr(dataArr(i, 1)))) = i
+Next i
 ' -------------------------
 ' УШЛИ (через БД + EXT)
 ' -------------------------
