@@ -1,0 +1,210 @@
+Sub UPDATE_SECOND_LIST_FULL()
+
+    Dim wbDB As Workbook, wbExt As Workbook, wbCur As Workbook
+    Dim wsDB As Worksheet, wsExt As Worksheet, wsCur As Worksheet
+    
+    Dim dataArr, extArr, curArr
+    Dim dictNew As Object, dictCur As Object, dictExt As Object
+    
+    Dim i As Long, j As Long, lastRow As Long
+    Dim key As Variant
+    
+    ' -------------------------
+    ' ПУТИ
+    ' -------------------------
+    Dim pathDB As String, pathExt As String, pathCur As String
+    
+    pathDB = "C:\Files\Database.xlsx"
+    pathExt = "C:\Files\Another.xlsx"
+    pathCur = "C:\Files\SecondFile.xlsx"
+    
+    ' -------------------------
+    ' ОТКРЫВАЕМ ФАЙЛ СПИСКА
+    ' -------------------------
+    On Error Resume Next
+    Set wbCur = Workbooks("SecondFile.xlsx")
+    On Error GoTo 0
+    
+    If wbCur Is Nothing Then
+        Set wbCur = Workbooks.Open(pathCur)
+    End If
+    
+    Set wsCur = wbCur.Sheets(2)
+    
+    ' -------------------------
+    ' MAP (ДОБАВЛЕНИЕ)
+    ' -------------------------
+    Dim map As Variant
+    map = Array( _
+        Array(1, "counter", 0), _
+        Array(2, "text", "МОЙ ТЕКСТ"), _
+        Array(3, "col", 11), _
+        Array(5, "ext", 3), _
+        Array(6, "ext", 2), _
+        Array(7, "col", 3), _
+        Array(8, "col", 5), _
+        Array(9, "col", 4), _
+        Array(10, "col", 5), _
+        Array(11, "col", 23), _
+        Array(12, "ext", 10), _
+        Array(13, "col", 2), _
+        Array(14, "col", 12), _
+        Array(15, "col", 17), _
+        Array(16, "col", 9), _
+        Array(17, "col", 10), _
+        Array(18, "text", "СТАТУС"), _
+        Array(19, "col", 1) _
+    )
+    
+    ' -------------------------
+    ' MAP (ОБНОВЛЕНИЕ)
+    ' -------------------------
+    Dim mapUpdate As Variant
+    mapUpdate = Array( _
+        Array(3, "col", 11), _
+        Array(5, "ext", 3), _
+        Array(12, "ext", 10) _
+    )
+    
+    ' -------------------------
+    ' ЧИТАЕМ БД
+    ' -------------------------
+    Set wbDB = Workbooks.Open(pathDB, ReadOnly:=True)
+    Set wsDB = wbDB.Sheets(1)
+    
+    lastRow = wsDB.Cells(wsDB.Rows.Count, 1).End(xlUp).Row
+    dataArr = wsDB.Range("A2:W" & lastRow).Value
+    
+    Set dictNew = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(dataArr, 1)
+        If dataArr(i, 13) = "+" Then
+            dictNew(dataArr(i, 1)) = i
+        End If
+    Next i
+    
+    wbDB.Close False
+    
+    ' -------------------------
+    ' ЧИТАЕМ EXT (EMAIL)
+    ' -------------------------
+    Set wbExt = Workbooks.Open(pathExt, ReadOnly:=True)
+    Set wsExt = wbExt.Sheets(1)
+    
+    lastRow = wsExt.Cells(wsExt.Rows.Count, 15).End(xlUp).Row
+    extArr = wsExt.Range("A18:Z" & lastRow).Value
+    
+    Set dictExt = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(extArr, 1)
+        If Trim(extArr(i, 15)) <> "" Then
+            dictExt(LCase(extArr(i, 15))) = i
+        End If
+    Next i
+    
+    wbExt.Close False
+    
+    ' -------------------------
+    ' ЧИТАЕМ ТЕКУЩИЙ СПИСОК
+    ' -------------------------
+    lastRow = wsCur.Cells(wsCur.Rows.Count, 19).End(xlUp).Row
+    
+    If lastRow >= 2 Then
+        curArr = wsCur.Range("A2:S" & lastRow).Value
+    End If
+    
+    Set dictCur = CreateObject("Scripting.Dictionary")
+    
+    If Not IsEmpty(curArr) Then
+        For i = 1 To UBound(curArr, 1)
+            dictCur(curArr(i, 19)) = i + 1
+        Next i
+    End If
+    
+    ' -------------------------
+    ' УДАЛЯЕМ ЛИШНИХ
+    ' -------------------------
+    For i = wsCur.Cells(wsCur.Rows.Count, 19).End(xlUp).Row To 2 Step -1
+        
+        If Not dictNew.exists(wsCur.Cells(i, 19).Value) Then
+            wsCur.Rows(i).Delete
+        End If
+        
+    Next i
+    
+    ' -------------------------
+    ' ДОБАВЛЕНИЕ / ОБНОВЛЕНИЕ
+    ' -------------------------
+    Dim nextRow As Long
+    nextRow = wsCur.Cells(wsCur.Rows.Count, 1).End(xlUp).Row + 1
+    
+    For Each key In dictNew.keys
+        
+        If Not dictCur.exists(key) Then
+            
+            ' --- ДОБАВЛЕНИЕ ---
+            Dim rowIndex As Long
+            rowIndex = dictNew(key)
+            
+            For j = 0 To UBound(map)
+                WriteByMap wsCur, nextRow, map(j), dataArr, extArr, dictExt, rowIndex
+            Next j
+            
+            nextRow = nextRow + 1
+            
+        Else
+            
+            ' --- ОБНОВЛЕНИЕ ---
+            Dim curRow As Long
+            curRow = dictCur(key)
+            
+            Dim rowIndex2 As Long
+            rowIndex2 = dictNew(key)
+            
+            For j = 0 To UBound(mapUpdate)
+                WriteByMap wsCur, curRow, mapUpdate(j), dataArr, extArr, dictExt, rowIndex2
+            Next j
+            
+        End If
+        
+    Next key
+    
+    ' -------------------------
+    ' СОХРАНЕНИЕ
+    ' -------------------------
+    wbCur.Save
+    
+    MsgBox "Готово"
+
+End Sub
+
+Private Sub WriteByMap(ws As Worksheet, rowNum As Long, m As Variant, dataArr, extArr, dictExt, srcRow As Long)
+
+    Dim val
+    Dim email As String
+    
+    Select Case m(1)
+        
+        Case "counter"
+            ws.Cells(rowNum, m(0)).Value = rowNum - 1
+        
+        Case "col"
+            val = dataArr(srcRow, m(2))
+            If IsError(val) Then val = ""
+            ws.Cells(rowNum, m(0)).Value = val
+        
+        Case "text"
+            ws.Cells(rowNum, m(0)).Value = m(2)
+        
+        Case "ext"
+            email = LCase(Trim(dataArr(srcRow, 5))) ' EMAIL
+            
+            If dictExt.exists(email) Then
+                val = extArr(dictExt(email), m(2))
+                If IsError(val) Then val = ""
+                ws.Cells(rowNum, m(0)).Value = val
+            End If
+            
+    End Select
+
+End Sub
