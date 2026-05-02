@@ -1,3 +1,8 @@
+
+
+
+
+
 Sub UPDATE_SECOND_LIST_FULL()
 
     Dim wbDB As Workbook, wbExt As Workbook, wbCur As Workbook
@@ -131,7 +136,25 @@ Sub UPDATE_SECOND_LIST_FULL()
         End If
         
     Next i
+    ' -------------------------
+' ПЕРЕСТРАИВАЕМ dictCur ПОСЛЕ УДАЛЕНИЯ
+' -------------------------
+Set dictCur = CreateObject("Scripting.Dictionary")
+
+lastRow = wsCur.Cells(wsCur.Rows.Count, 19).End(xlUp).Row
+
+If lastRow >= 2 Then
     
+    Dim curArr2
+    curArr2 = wsCur.Range("A2:S" & lastRow).Value
+    
+    For i = 1 To UBound(curArr2, 1)
+        If curArr2(i, 19) <> "" Then
+            dictCur(curArr2(i, 19)) = i + 1
+        End If
+    Next i
+    
+End If
     ' -------------------------
     ' ДОБАВЛЕНИЕ / ОБНОВЛЕНИЕ
     ' -------------------------
