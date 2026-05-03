@@ -1,11 +1,11 @@
-Sub HISTORY_SYSTEM_MAP()
+Sub HISTORY_SYSTEM_MAP_EXT()
 
-    Dim wbDB As Workbook, wbCur As Workbook
-    Dim wsDB As Worksheet, wsMain As Worksheet
+    Dim wbDB As Workbook, wbCur As Workbook, wbExt As Workbook
+    Dim wsDB As Worksheet, wsMain As Worksheet, wsExt As Worksheet
     Dim wsFired As Worksheet, wsNew As Worksheet
     
-    Dim dataArr, curArr
-    Dim dictNew As Object, dictCur As Object, oldStatus As Object
+    Dim dataArr, curArr, extArr
+    Dim dictNew As Object, dictCur As Object, dictExt As Object, oldStatus As Object
     
     Dim i As Long, lastRow As Long, lastCol As Long
     Dim key As Variant, rowIndex As Long
@@ -13,24 +13,28 @@ Sub HISTORY_SYSTEM_MAP()
     ' -------------------------
     ' ПУТИ
     ' -------------------------
-    Dim pathDB As String, pathCur As String
+    Dim pathDB As String, pathCur As String, pathExt As String
     
     pathDB = "C:\Files\Database.xlsx"
     pathCur = "C:\Files\Current.xlsx"
+    pathExt = "C:\Files\Ext.xlsx"
     
     ' -------------------------
     ' ОТКРЫТИЕ
     ' -------------------------
     Set wbDB = Workbooks.Open(pathDB)
     Set wbCur = Workbooks.Open(pathCur)
+    Set wbExt = Workbooks.Open(pathExt)
     
     Set wsDB = wbDB.Sheets(1)
     Set wsMain = wbCur.Sheets(2)
+    Set wsExt = wbExt.Sheets(1)
+    
     Set wsFired = wbCur.Sheets(3)
     Set wsNew = wbCur.Sheets(4)
     
     ' -------------------------
-    ' БД → массив
+    ' БД
     ' -------------------------
     lastRow = wsDB.Cells(wsDB.Rows.Count, 1).End(xlUp).Row
     lastCol = wsDB.Cells(1, wsDB.Columns.Count).End(xlToLeft).Column
@@ -38,7 +42,21 @@ Sub HISTORY_SYSTEM_MAP()
     dataArr = wsDB.Range(wsDB.Cells(2, 1), wsDB.Cells(lastRow, lastCol)).Value
     
     ' -------------------------
-    ' dictNew
+    ' EXT (с 18 строки колонка O)
+    ' -------------------------
+    lastRow = wsExt.Cells(wsExt.Rows.Count, 15).End(xlUp).Row
+    extArr = wsExt.Range("O18:Z" & lastRow).Value
+    
+    Set dictExt = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(extArr, 1)
+        If extArr(i, 1) <> "" Then
+            dictExt(LCase(Trim(extArr(i, 1)))) = i
+        End If
+    Next i
+    
+    ' -------------------------
+    ' NEW
     ' -------------------------
     Set dictNew = CreateObject("Scripting.Dictionary")
     
@@ -49,7 +67,7 @@ Sub HISTORY_SYSTEM_MAP()
     Next i
     
     ' -------------------------
-    ' dictCur + старый статус
+    ' CURRENT
     ' -------------------------
     Set dictCur = CreateObject("Scripting.Dictionary")
     Set oldStatus = CreateObject("Scripting.Dictionary")
@@ -61,18 +79,16 @@ Sub HISTORY_SYSTEM_MAP()
         curArr = wsMain.Range("A2:S" & lastRow).Value
         
         For i = 1 To UBound(curArr, 1)
-            
             If curArr(i, 19) <> "" Then
                 dictCur(curArr(i, 19)) = i
                 oldStatus(curArr(i, 19)) = curArr(i, 16)
             End If
-            
         Next i
         
     End If
     
     ' -------------------------
-    ' MAP — УВОЛЕННЫЕ (лист 3)
+    ' MAP УВОЛЕННЫЕ
     ' -------------------------
     Dim mapFired As Variant
     
@@ -81,8 +97,10 @@ Sub HISTORY_SYSTEM_MAP()
         Array(2, "col", 3), _
         Array(3, "col", 6), _
         Array(4, "col", 4), _
+        Array(5, "ext", 2), _
         Array(7, "col", 5), _
         Array(8, "col", 23), _
+        Array(9, "ext", 10), _
         Array(10, "col", 2), _
         Array(11, "col", 24), _
         Array(12, "col", 8), _
@@ -90,7 +108,7 @@ Sub HISTORY_SYSTEM_MAP()
     )
     
     ' -------------------------
-    ' MAP — НОВЫЕ (лист 4)
+    ' MAP НОВЫЕ
     ' -------------------------
     Dim mapNew As Variant
     
@@ -99,8 +117,10 @@ Sub HISTORY_SYSTEM_MAP()
         Array(2, "col", 3), _
         Array(3, "col", 6), _
         Array(4, "col", 4), _
+        Array(5, "ext", 2), _
         Array(7, "col", 5), _
         Array(8, "col", 23), _
+        Array(9, "ext", 10), _
         Array(10, "col", 2), _
         Array(11, "date", 0) _
     )
@@ -117,7 +137,7 @@ Sub HISTORY_SYSTEM_MAP()
             Dim nextRowN As Long
             nextRowN = wsNew.Cells(wsNew.Rows.Count, 1).End(xlUp).Row + 1
             
-            WriteRowByMap wsNew, nextRowN, mapNew, dataArr, rowIndex
+            WriteRowByMap wsNew, nextRowN, mapNew, dataArr, extArr, dictExt, rowIndex
             
         End If
         
@@ -140,7 +160,7 @@ Sub HISTORY_SYSTEM_MAP()
                 Dim nextRowF As Long
                 nextRowF = wsFired.Cells(wsFired.Rows.Count, 1).End(xlUp).Row + 1
                 
-                WriteRowByMap wsFired, nextRowF, mapFired, dataArr, rowIndex
+                WriteRowByMap wsFired, nextRowF, mapFired, dataArr, extArr, dictExt, rowIndex
                 
             End If
             
@@ -149,16 +169,28 @@ Sub HISTORY_SYSTEM_MAP()
     Next key
     
     wbDB.Close False
+    wbExt.Close False
     wbCur.Save
     wbCur.Close
     
-    MsgBox "История (map) готова"
+    MsgBox "История с EXT готова"
 
 End Sub
 
-Private Sub WriteRowByMap(ws As Worksheet, rowNum As Long, map As Variant, dataArr, srcRow As Long)
+Private Sub WriteRowByMap(ws As Worksheet, rowNum As Long, map As Variant, _
+                          dataArr, extArr, dictExt, srcRow As Long)
 
     Dim j As Long
+    Dim email As String
+    Dim extRow As Long
+    
+    email = LCase(Trim(dataArr(srcRow, 5)))
+    
+    If dictExt.exists(email) Then
+        extRow = dictExt(email)
+    Else
+        extRow = 0
+    End If
     
     For j = 0 To UBound(map)
         
@@ -170,6 +202,13 @@ Private Sub WriteRowByMap(ws As Worksheet, rowNum As Long, map As Variant, dataA
             Case "col"
                 ws.Cells(rowNum, map(j)(0)).Value = dataArr(srcRow, map(j)(2))
             
+            Case "ext"
+                If extRow > 0 Then
+                    ws.Cells(rowNum, map(j)(0)).Value = extArr(extRow, map(j)(2))
+                Else
+                    ws.Cells(rowNum, map(j)(0)).Value = ""
+                End If
+            
             Case "date"
                 ws.Cells(rowNum, map(j)(0)).Value = Date
                 
@@ -178,6 +217,16 @@ Private Sub WriteRowByMap(ws As Worksheet, rowNum As Long, map As Variant, dataA
     Next j
 
 End Sub
+
+
+
+
+
+
+
+
+
+
 —------------------------------------------
 
 Sub UPDATE_SECOND_LIST_FULL()
