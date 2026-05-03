@@ -1,5 +1,231 @@
 Sub RUN_ALL_LISTS()
 
+    Dim wbOut As Workbook
+    
+    ' === ОТКРЫВАЕМ ФАЙЛ КУДА ПИШЕМ ===
+    Set wbOut = Workbooks.Open("C:\Files\Result.xlsx")
+
+    ' ЛИСТ 2 — полный список
+    Call UpdateList( _
+        wbOut.Sheets(2), _
+        GetMapFull(), _
+        Array("студенты", "рабочие", "обучение"), _
+        Array("уволен", "командировка"), _
+        False _
+    )
+    
+    ' ЛИСТ 6 — больничный
+    Call UpdateList( _
+        wbOut.Sheets(6), _
+        GetMapSick(), _
+        Array("студенты", "рабочие", "обучение"), _
+        Array("больничный"), _
+        True _
+    )
+
+    wbOut.Save
+    wbOut.Close
+
+End Sub
+
+
+' =====================================
+' УНИВЕРСАЛЬНАЯ ФУНКЦИЯ
+' =====================================
+Sub UpdateList(ws As Worksheet, map As Variant, categories As Variant, statuses As Variant, includeStatus As Boolean)
+
+    Dim wbDB As Workbook, wbExt As Workbook
+    Dim wsDB As Worksheet, wsExt As Worksheet
+    
+    Dim dataArr, extArr
+    Dim dictExt As Object
+    
+    Dim i As Long, outRow As Long
+    Dim email As String, statusVal As String, categoryVal As String
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    Set wbDB = Workbooks.Open("C:\Files\Database.xlsx", ReadOnly:=True)
+    Set wbExt = Workbooks.Open("C:\Files\Ext.xlsx", ReadOnly:=True)
+    
+    Set wsDB = wbDB.Sheets(1)
+    Set wsExt = wbExt.Sheets(1)
+    
+    dataArr = wsDB.Range("A2").CurrentRegion.Value
+    
+    ' ========= EXT =========
+    Dim lastRow As Long
+    lastRow = wsExt.Cells(wsExt.Rows.Count, 15).End(xlUp).Row
+    
+    extArr = wsExt.Range("O18:Z" & lastRow).Value
+    
+    Set dictExt = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(extArr, 1)
+        email = Normalize(extArr(i, 1))
+        If email <> "" Then dictExt(email) = i
+    Next i
+    
+    ' ========= ЧИСТИМ ЛИСТ =========
+    ws.Rows("2:" & ws.Rows.Count).ClearContents
+    
+    outRow = 1
+    
+    ' ========= ОСНОВНОЙ ЦИКЛ =========
+    For i = 1 To UBound(dataArr, 1)
+        
+        email = Normalize(dataArr(i, 5))
+        statusVal = LCase(Trim(dataArr(i, 10)))
+        categoryVal = LCase(Trim(dataArr(i, 2)))
+        
+        If email = "" Then GoTo NextI
+        
+        ' --- фильтр категории
+        If Not InArray(categoryVal, categories) Then GoTo NextI
+        
+        ' --- фильтр статуса
+        If includeStatus Then
+            If Not InArray(statusVal, statuses) Then GoTo NextI
+        Else
+            If InArray(statusVal, statuses) Then GoTo NextI
+        End If
+        
+        ' --- запись
+        outRow = outRow + 1
+        
+        WriteByMap ws, outRow, map, dataArr, extArr, dictExt, i
+        
+NextI:
+    Next i
+    
+    wbDB.Close False
+    wbExt.Close False
+    
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+
+End Sub
+
+
+' =====================================
+' MAP WRITER
+' =====================================
+Private Sub WriteByMap(ws As Worksheet, r As Long, map As Variant, dataArr, extArr, dictExt As Object, srcRow As Long)
+
+    Dim j As Long
+    Dim email As String
+    Dim extRow As Long
+    
+    email = Normalize(dataArr(srcRow, 5))
+    
+    For j = 0 To UBound(map)
+        
+        Select Case map(j)(1)
+            
+            Case "counter"
+                ws.Cells(r, map(j)(0)).Value = r - 1
+            
+            Case "col"
+                ws.Cells(r, map(j)(0)).Value = dataArr(srcRow, map(j)(2))
+            
+            Case "ext"
+                If dictExt.exists(email) Then
+                    extRow = dictExt(email)
+                    ws.Cells(r, map(j)(0)).Value = extArr(extRow, map(j)(2))
+                End If
+            
+            Case "manual"
+                ws.Cells(r, map(j)(0)).Value = ""
+                
+        End Select
+        
+    Next j
+
+End Sub
+
+
+' =====================================
+' НОРМАЛИЗАЦИЯ EMAIL
+' =====================================
+Private Function Normalize(val As Variant) As String
+    Normalize = LCase(Trim(Replace(CStr(val), Chr(160), "")))
+End Function
+
+
+' =====================================
+' ПРОВЕРКА В МАССИВЕ
+' =====================================
+Private Function InArray(val As String, arr As Variant) As Boolean
+    Dim i As Long
+    For i = LBound(arr) To UBound(arr)
+        If val = LCase(arr(i)) Then
+            InArray = True
+            Exit Function
+        End If
+    Next i
+End Function
+
+
+' =====================================
+' MAP ЛИСТ 2
+' =====================================
+Function GetMapFull()
+
+    GetMapFull = Array( _
+        Array(1, "counter", 0), _
+        Array(2, "col", 2), _
+        Array(3, "col", 11), _
+        Array(4, "manual", 0), _
+        Array(5, "ext", 2), _
+        Array(6, "col", 3), _
+        Array(7, "col", 5), _
+        Array(8, "col", 4), _
+        Array(9, "col", 5), _
+        Array(10, "col", 23), _
+        Array(11, "ext", 10), _
+        Array(12, "col", 2), _
+        Array(13, "col", 12), _
+        Array(14, "col", 17), _
+        Array(15, "col", 9), _
+        Array(16, "col", 10), _
+        Array(17, "manual", 0), _
+        Array(18, "col", 1) _
+    )
+
+End Function
+
+
+' =====================================
+' MAP ЛИСТ 6
+' =====================================
+Function GetMapSick()
+
+    GetMapSick = GetMapFull()
+
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sub RUN_ALL_LISTS()
+
     ' ЛИСТ 2 — полный список
     Call UpdateList( _
         Sheets(2), _
