@@ -1,3 +1,255 @@
+Sub HISTORY_SYSTEM_FINAL()
+
+    Dim wbDB As Workbook, wbCur As Workbook, wbExt As Workbook
+    Dim wsDB As Worksheet, wsMain As Worksheet, wsExt As Worksheet
+    Dim wsFired As Worksheet, wsNew As Worksheet
+    
+    Dim dataArr, curArr, extArr
+    Dim dictNew As Object, dictCur As Object, dictExt As Object, oldStatus As Object
+    
+    Dim i As Long, r As Long, lastRow As Long, lastCol As Long
+    Dim key As Variant, srcRow As Long
+    Dim email As String, category As String, statusVal As String
+    Dim extRow As Long
+    
+    ' -------------------------
+    ' SPEED
+    ' -------------------------
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    ' -------------------------
+    ' FILES
+    ' -------------------------
+    Set wbDB = Workbooks.Open("C:\Files\Database.xlsx", ReadOnly:=True)
+    Set wbCur = Workbooks.Open("C:\Files\Current.xlsx")
+    Set wbExt = Workbooks.Open("C:\Files\Ext.xlsx")
+    
+    Set wsDB = wbDB.Sheets(1)
+    Set wsMain = wbCur.Sheets(2)
+    Set wsFired = wbCur.Sheets(3)
+    Set wsNew = wbCur.Sheets(4)
+    Set wsExt = wbExt.Sheets(1)
+    
+    ' -------------------------
+    ' DB
+    ' -------------------------
+    dataArr = wsDB.Range("A2").CurrentRegion.Value
+    
+    Set dictNew = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(dataArr, 1)
+        
+        category = LCase(Trim(dataArr(i, 2)))
+        
+        If (category = "студент" Or category = "обучение" Or category = "сотрудник") Then
+            
+            If dataArr(i, 1) <> "" Then
+                dictNew(dataArr(i, 1)) = i
+            End If
+            
+        End If
+        
+    Next i
+    
+    ' -------------------------
+    ' EXT (email O column)
+    ' -------------------------
+    lastRow = wsExt.Cells(wsExt.Rows.Count, 15).End(xlUp).Row
+    extArr = wsExt.Range("O18:Z" & lastRow).Value
+    
+    Set dictExt = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(extArr, 1)
+        If extArr(i, 1) <> "" Then
+            dictExt(LCase(Trim(extArr(i, 1)))) = i
+        End If
+    Next i
+    
+    ' -------------------------
+    ' CURRENT
+    ' -------------------------
+    curArr = wsMain.Range("A2:S" & wsMain.Cells(wsMain.Rows.Count, 19).End(xlUp).Row).Value
+    
+    Set dictCur = CreateObject("Scripting.Dictionary")
+    Set oldStatus = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(curArr, 1)
+        
+        If curArr(i, 19) <> "" Then
+            dictCur(curArr(i, 19)) = i
+            oldStatus(curArr(i, 19)) = curArr(i, 16)
+        End If
+        
+    Next i
+    
+    ' -------------------------
+    ' MAP FIRED
+    ' -------------------------
+    Dim mapFired As Variant, mapNew As Variant
+    
+    mapFired = Array( _
+        Array(1, "counter", 0), _
+        Array(2, "col", 3), _
+        Array(3, "col", 6), _
+        Array(4, "col", 4), _
+        Array(5, "ext", 2), _
+        Array(6, "manual", 0), _
+        Array(7, "col", 5), _
+        Array(8, "col", 23), _
+        Array(9, "ext", 10), _
+        Array(10, "col", 2), _
+        Array(11, "col", 24), _
+        Array(12, "col", 8), _
+        Array(13, "manual", 0) _
+    )
+    
+    mapNew = Array( _
+        Array(1, "counter", 0), _
+        Array(2, "col", 3), _
+        Array(3, "col", 6), _
+        Array(4, "col", 4), _
+        Array(5, "ext", 2), _
+        Array(6, "manual", 0), _
+        Array(7, "col", 5), _
+        Array(8, "col", 23), _
+        Array(9, "ext", 10), _
+        Array(10, "col", 2), _
+        Array(11, "manual", 0) _
+    )
+    
+    ' -------------------------
+    ' OUTPUT ARRAYS
+    ' -------------------------
+    Dim outNew(), outFired()
+    ReDim outNew(1 To dictNew.Count, 1 To 13)
+    ReDim outFired(1 To dictCur.Count, 1 To 13)
+    
+    ' -------------------------
+    ' NEW
+    ' -------------------------
+    r = 0
+    
+    For Each key In dictNew.keys
+        
+        If Not dictCur.exists(key) Then
+            
+            r = r + 1
+            srcRow = dictNew(key)
+            
+            For i = 0 To UBound(mapNew)
+                
+                Select Case mapNew(i)(1)
+                    
+                    Case "counter"
+                        outNew(r, mapNew(i)(0)) = r
+                    
+                    Case "col"
+                        outNew(r, mapNew(i)(0)) = dataArr(srcRow, mapNew(i)(2))
+                    
+                    Case "ext"
+                        email = LCase(dataArr(srcRow, 5))
+                        
+                        If dictExt.exists(email) Then
+                            extRow = dictExt(email)
+                            outNew(r, mapNew(i)(0)) = extArr(extRow, mapNew(i)(2))
+                        End If
+                    
+                    Case "manual"
+                        outNew(r, mapNew(i)(0)) = ""
+                        
+                End Select
+                
+            Next i
+            
+        End If
+        
+    Next key
+    
+    ' -------------------------
+    ' FIRED
+    ' -------------------------
+    r = 0
+    
+    For Each key In dictNew.keys
+        
+        srcRow = dictNew(key)
+        
+        If LCase(dataArr(srcRow, 9)) = "уволен" Then
+            
+            r = r + 1
+            
+            For i = 0 To UBound(mapFired)
+                
+                Select Case mapFired(i)(1)
+                    
+                    Case "counter"
+                        outFired(r, mapFired(i)(0)) = r
+                    
+                    Case "col"
+                        outFired(r, mapFired(i)(0)) = dataArr(srcRow, mapFired(i)(2))
+                    
+                    Case "ext"
+                        email = LCase(dataArr(srcRow, 5))
+                        
+                        If dictExt.exists(email) Then
+                            extRow = dictExt(email)
+                            outFired(r, mapFired(i)(0)) = extArr(extRow, mapFired(i)(2))
+                        End If
+                    
+                    Case "manual"
+                        outFired(r, mapFired(i)(0)) = ""
+                        
+                End Select
+                
+            Next i
+            
+        End If
+        
+    Next key
+    
+    ' -------------------------
+    ' WRITE
+    ' -------------------------
+    If r > 0 Then
+        wsNew.Range("A2").Resize(UBound(outNew, 1), UBound(outNew, 2)).Value = outNew
+        wsFired.Range("A2").Resize(UBound(outFired, 1), UBound(outFired, 2)).Value = outFired
+    End If
+    
+    ' -------------------------
+    ' CLEAN
+    ' -------------------------
+    wbDB.Close False
+    wbExt.Close False
+    wbCur.Save
+    wbCur.Close
+    
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    
+    MsgBox "DONE"
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 r = 0
 
 For Each key In dictNew.keys
