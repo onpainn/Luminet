@@ -1,4 +1,4 @@
-Sub HISTORY_SYSTEM_MAP_EXT()
+Sub HISTORY_SYSTEM_FAST()
 
     Dim wbDB As Workbook, wbCur As Workbook, wbExt As Workbook
     Dim wsDB As Worksheet, wsMain As Worksheet, wsExt As Worksheet
@@ -7,45 +7,50 @@ Sub HISTORY_SYSTEM_MAP_EXT()
     Dim dataArr, curArr, extArr
     Dim dictNew As Object, dictCur As Object, dictExt As Object, oldStatus As Object
     
-    Dim i As Long, lastRow As Long, lastCol As Long
-    Dim key As Variant, rowIndex As Long
+    Dim i As Long, r As Long
+    Dim key As Variant, srcRow As Long
+    Dim email As String, extRow As Long
     
     ' -------------------------
-    ' ПУТИ
+    ' SPEED MODE
     ' -------------------------
-    Dim pathDB As String, pathCur As String, pathExt As String
-    
-    pathDB = "C:\Files\Database.xlsx"
-    pathCur = "C:\Files\Current.xlsx"
-    pathExt = "C:\Files\Ext.xlsx"
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
     
     ' -------------------------
-    ' ОТКРЫТИЕ
+    ' FILES
     ' -------------------------
-    Set wbDB = Workbooks.Open(pathDB)
-    Set wbCur = Workbooks.Open(pathCur)
-    Set wbExt = Workbooks.Open(pathExt)
+    Set wbDB = Workbooks.Open("C:\Files\Database.xlsx", ReadOnly:=True)
+    Set wbCur = Workbooks.Open("C:\Files\Current.xlsx")
+    Set wbExt = Workbooks.Open("C:\Files\Ext.xlsx")
     
     Set wsDB = wbDB.Sheets(1)
     Set wsMain = wbCur.Sheets(2)
-    Set wsExt = wbExt.Sheets(1)
-    
     Set wsFired = wbCur.Sheets(3)
     Set wsNew = wbCur.Sheets(4)
+    Set wsExt = wbExt.Sheets(1)
     
     ' -------------------------
-    ' БД
+    ' DB
     ' -------------------------
-    lastRow = wsDB.Cells(wsDB.Rows.Count, 1).End(xlUp).Row
-    lastCol = wsDB.Cells(1, wsDB.Columns.Count).End(xlToLeft).Column
+    dataArr = wsDB.Range("A2").CurrentRegion.Value
     
-    dataArr = wsDB.Range(wsDB.Cells(2, 1), wsDB.Cells(lastRow, lastCol)).Value
+    Set dictNew = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(dataArr, 1)
+        If dataArr(i, 1) <> "" Then
+            dictNew(dataArr(i, 1)) = i
+        End If
+    Next i
     
     ' -------------------------
-    ' EXT (с 18 строки колонка O)
+    ' EXT (email → row)
     ' -------------------------
-    lastRow = wsExt.Cells(wsExt.Rows.Count, 15).End(xlUp).Row
-    extArr = wsExt.Range("O18:Z" & lastRow).Value
+    Dim lastExtRow As Long
+    lastExtRow = wsExt.Cells(wsExt.Rows.Count, 15).End(xlUp).Row
+    
+    extArr = wsExt.Range("O18:Z" & lastExtRow).Value
     
     Set dictExt = CreateObject("Scripting.Dictionary")
     
@@ -56,111 +61,134 @@ Sub HISTORY_SYSTEM_MAP_EXT()
     Next i
     
     ' -------------------------
-    ' NEW
+    ' CURRENT (лист 2)
     ' -------------------------
-    Set dictNew = CreateObject("Scripting.Dictionary")
+    curArr = wsMain.Range("A2:S" & wsMain.Cells(wsMain.Rows.Count, 19).End(xlUp).Row).Value
     
-    For i = 1 To UBound(dataArr, 1)
-        If dataArr(i, 1) <> "" Then
-            dictNew(dataArr(i, 1)) = i
+    Set dictCur = CreateObject("Scripting.Dictionary")
+    Set oldStatus = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(curArr, 1)
+        If curArr(i, 19) <> "" Then
+            dictCur(curArr(i, 19)) = i
+            oldStatus(curArr(i, 19)) = curArr(i, 16)
         End If
     Next i
     
     ' -------------------------
-    ' CURRENT
+    ' MAPS
     ' -------------------------
-    Set dictCur = CreateObject("Scripting.Dictionary")
-    Set oldStatus = CreateObject("Scripting.Dictionary")
-    
-    lastRow = wsMain.Cells(wsMain.Rows.Count, 19).End(xlUp).Row
-    
-    If lastRow >= 2 Then
-        
-        curArr = wsMain.Range("A2:S" & lastRow).Value
-        
-        For i = 1 To UBound(curArr, 1)
-            If curArr(i, 19) <> "" Then
-                dictCur(curArr(i, 19)) = i
-                oldStatus(curArr(i, 19)) = curArr(i, 16)
-            End If
-        Next i
-        
-    End If
-    
-    ' -------------------------
-    ' MAP УВОЛЕННЫЕ
-    ' -------------------------
-    Dim mapFired As Variant
+    Dim mapFired As Variant, mapNew As Variant
     
     mapFired = Array( _
         Array(1, "counter", 0), _
         Array(2, "col", 3), _
         Array(3, "col", 6), _
         Array(4, "col", 4), _
-        Array(5, "ext", 2), _
-        Array(7, "col", 5), _
-        Array(8, "col", 23), _
-        Array(9, "ext", 10), _
-        Array(10, "col", 2), _
-        Array(11, "col", 24), _
-        Array(12, "col", 8), _
-        Array(14, "date", 0) _
+        Array(5, "col", 5), _
+        Array(6, "col", 23), _
+        Array(7, "col", 2), _
+        Array(8, "col", 24), _
+        Array(9, "col", 8), _
+        Array(10, "ext", 2), _
+        Array(11, "ext", 10) _
     )
-    
-    ' -------------------------
-    ' MAP НОВЫЕ
-    ' -------------------------
-    Dim mapNew As Variant
     
     mapNew = Array( _
         Array(1, "counter", 0), _
         Array(2, "col", 3), _
         Array(3, "col", 6), _
         Array(4, "col", 4), _
-        Array(5, "ext", 2), _
-        Array(7, "col", 5), _
-        Array(8, "col", 23), _
-        Array(9, "ext", 10), _
-        Array(10, "col", 2), _
-        Array(11, "date", 0) _
+        Array(5, "col", 5), _
+        Array(6, "col", 23), _
+        Array(7, "col", 2), _
+        Array(8, "ext", 2), _
+        Array(9, "ext", 10) _
     )
     
     ' -------------------------
-    ' НОВЫЕ
+    ' OUTPUT ARRAYS
     ' -------------------------
+    Dim outNew(), outFired()
+    Dim nNew As Long, nFired As Long
+    
+    ReDim outNew(1 To dictNew.Count, 1 To 11)
+    ReDim outFired(1 To dictCur.Count, 1 To 11)
+    
+    ' -------------------------
+    ' NEW LIST
+    ' -------------------------
+    r = 0
+    
     For Each key In dictNew.keys
         
         If Not dictCur.exists(key) Then
             
-            rowIndex = dictNew(key)
+            r = r + 1
+            srcRow = dictNew(key)
             
-            Dim nextRowN As Long
-            nextRowN = wsNew.Cells(wsNew.Rows.Count, 1).End(xlUp).Row + 1
-            
-            WriteRowByMap wsNew, nextRowN, mapNew, dataArr, extArr, dictExt, rowIndex
+            For i = 0 To UBound(mapNew)
+                
+                Select Case mapNew(i)(1)
+                    
+                    Case "counter"
+                        outNew(r, mapNew(i)(0)) = r
+                    
+                    Case "col"
+                        outNew(r, mapNew(i)(0)) = dataArr(srcRow, mapNew(i)(2))
+                    
+                    Case "ext"
+                        email = LCase(dataArr(srcRow, 5))
+                        
+                        If dictExt.exists(email) Then
+                            extRow = dictExt(email)
+                            outNew(r, mapNew(i)(0)) = extArr(extRow, mapNew(i)(2))
+                        End If
+                        
+                End Select
+                
+            Next i
             
         End If
         
     Next key
     
     ' -------------------------
-    ' УВОЛЕННЫЕ
+    ' FIRED LIST
     ' -------------------------
+    r = 0
+    
     For Each key In dictCur.keys
         
         If dictNew.exists(key) Then
             
-            Dim newStatus As String
-            newStatus = LCase(Trim(dataArr(dictNew(key), 9)))
-            
-            If LCase(oldStatus(key)) <> "уволен" And newStatus = "уволен" Then
+            If LCase(oldStatus(key)) <> "уволен" And _
+               LCase(dataArr(dictNew(key), 9)) = "уволен" Then
                 
-                rowIndex = dictNew(key)
+                r = r + 1
+                srcRow = dictNew(key)
                 
-                Dim nextRowF As Long
-                nextRowF = wsFired.Cells(wsFired.Rows.Count, 1).End(xlUp).Row + 1
-                
-                WriteRowByMap wsFired, nextRowF, mapFired, dataArr, extArr, dictExt, rowIndex
+                For i = 0 To UBound(mapFired)
+                    
+                    Select Case mapFired(i)(1)
+                        
+                        Case "counter"
+                            outFired(r, mapFired(i)(0)) = r
+                        
+                        Case "col"
+                            outFired(r, mapFired(i)(0)) = dataArr(srcRow, mapFired(i)(2))
+                        
+                        Case "ext"
+                            email = LCase(dataArr(srcRow, 5))
+                            
+                            If dictExt.exists(email) Then
+                                extRow = dictExt(email)
+                                outFired(r, mapFired(i)(0)) = extArr(extRow, mapFired(i)(2))
+                            End If
+                            
+                    End Select
+                    
+                Next i
                 
             End If
             
@@ -168,58 +196,29 @@ Sub HISTORY_SYSTEM_MAP_EXT()
         
     Next key
     
+    ' -------------------------
+    ' WRITE ONCE (FAST!)
+    ' -------------------------
+    If r > 0 Then
+        wsNew.Range("A2").Resize(UBound(outNew, 1), UBound(outNew, 2)).Value = outNew
+        wsFired.Range("A2").Resize(UBound(outFired, 1), UBound(outFired, 2)).Value = outFired
+    End If
+    
+    ' -------------------------
+    ' CLEANUP
+    ' -------------------------
     wbDB.Close False
     wbExt.Close False
     wbCur.Save
     wbCur.Close
     
-    MsgBox "История с EXT готова"
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    
+    MsgBox "FAST DONE"
 
 End Sub
-
-Private Sub WriteRowByMap(ws As Worksheet, rowNum As Long, map As Variant, _
-                          dataArr, extArr, dictExt, srcRow As Long)
-
-    Dim j As Long
-    Dim email As String
-    Dim extRow As Long
-    
-    email = LCase(Trim(dataArr(srcRow, 5)))
-    
-    If dictExt.exists(email) Then
-        extRow = dictExt(email)
-    Else
-        extRow = 0
-    End If
-    
-    For j = 0 To UBound(map)
-        
-        Select Case map(j)(1)
-            
-            Case "counter"
-                ws.Cells(rowNum, map(j)(0)).Value = rowNum - 1
-            
-            Case "col"
-                ws.Cells(rowNum, map(j)(0)).Value = dataArr(srcRow, map(j)(2))
-            
-            Case "ext"
-                If extRow > 0 Then
-                    ws.Cells(rowNum, map(j)(0)).Value = extArr(extRow, map(j)(2))
-                Else
-                    ws.Cells(rowNum, map(j)(0)).Value = ""
-                End If
-            
-            Case "date"
-                ws.Cells(rowNum, map(j)(0)).Value = Date
-                
-        End Select
-        
-    Next j
-
-End Sub
-
-
-
 
 
 
