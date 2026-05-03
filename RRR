@@ -1,7 +1,184 @@
+Sub HISTORY_SYSTEM_MAP()
 
+    Dim wbDB As Workbook, wbCur As Workbook
+    Dim wsDB As Worksheet, wsMain As Worksheet
+    Dim wsFired As Worksheet, wsNew As Worksheet
+    
+    Dim dataArr, curArr
+    Dim dictNew As Object, dictCur As Object, oldStatus As Object
+    
+    Dim i As Long, lastRow As Long, lastCol As Long
+    Dim key As Variant, rowIndex As Long
+    
+    ' -------------------------
+    ' ПУТИ
+    ' -------------------------
+    Dim pathDB As String, pathCur As String
+    
+    pathDB = "C:\Files\Database.xlsx"
+    pathCur = "C:\Files\Current.xlsx"
+    
+    ' -------------------------
+    ' ОТКРЫТИЕ
+    ' -------------------------
+    Set wbDB = Workbooks.Open(pathDB)
+    Set wbCur = Workbooks.Open(pathCur)
+    
+    Set wsDB = wbDB.Sheets(1)
+    Set wsMain = wbCur.Sheets(2)
+    Set wsFired = wbCur.Sheets(3)
+    Set wsNew = wbCur.Sheets(4)
+    
+    ' -------------------------
+    ' БД → массив
+    ' -------------------------
+    lastRow = wsDB.Cells(wsDB.Rows.Count, 1).End(xlUp).Row
+    lastCol = wsDB.Cells(1, wsDB.Columns.Count).End(xlToLeft).Column
+    
+    dataArr = wsDB.Range(wsDB.Cells(2, 1), wsDB.Cells(lastRow, lastCol)).Value
+    
+    ' -------------------------
+    ' dictNew
+    ' -------------------------
+    Set dictNew = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(dataArr, 1)
+        If dataArr(i, 1) <> "" Then
+            dictNew(dataArr(i, 1)) = i
+        End If
+    Next i
+    
+    ' -------------------------
+    ' dictCur + старый статус
+    ' -------------------------
+    Set dictCur = CreateObject("Scripting.Dictionary")
+    Set oldStatus = CreateObject("Scripting.Dictionary")
+    
+    lastRow = wsMain.Cells(wsMain.Rows.Count, 19).End(xlUp).Row
+    
+    If lastRow >= 2 Then
+        
+        curArr = wsMain.Range("A2:S" & lastRow).Value
+        
+        For i = 1 To UBound(curArr, 1)
+            
+            If curArr(i, 19) <> "" Then
+                dictCur(curArr(i, 19)) = i
+                oldStatus(curArr(i, 19)) = curArr(i, 16)
+            End If
+            
+        Next i
+        
+    End If
+    
+    ' -------------------------
+    ' MAP — УВОЛЕННЫЕ (лист 3)
+    ' -------------------------
+    Dim mapFired As Variant
+    
+    mapFired = Array( _
+        Array(1, "counter", 0), _
+        Array(2, "col", 3), _
+        Array(3, "col", 6), _
+        Array(4, "col", 4), _
+        Array(7, "col", 5), _
+        Array(8, "col", 23), _
+        Array(10, "col", 2), _
+        Array(11, "col", 24), _
+        Array(12, "col", 8), _
+        Array(14, "date", 0) _
+    )
+    
+    ' -------------------------
+    ' MAP — НОВЫЕ (лист 4)
+    ' -------------------------
+    Dim mapNew As Variant
+    
+    mapNew = Array( _
+        Array(1, "counter", 0), _
+        Array(2, "col", 3), _
+        Array(3, "col", 6), _
+        Array(4, "col", 4), _
+        Array(7, "col", 5), _
+        Array(8, "col", 23), _
+        Array(10, "col", 2), _
+        Array(11, "date", 0) _
+    )
+    
+    ' -------------------------
+    ' НОВЫЕ
+    ' -------------------------
+    For Each key In dictNew.keys
+        
+        If Not dictCur.exists(key) Then
+            
+            rowIndex = dictNew(key)
+            
+            Dim nextRowN As Long
+            nextRowN = wsNew.Cells(wsNew.Rows.Count, 1).End(xlUp).Row + 1
+            
+            WriteRowByMap wsNew, nextRowN, mapNew, dataArr, rowIndex
+            
+        End If
+        
+    Next key
+    
+    ' -------------------------
+    ' УВОЛЕННЫЕ
+    ' -------------------------
+    For Each key In dictCur.keys
+        
+        If dictNew.exists(key) Then
+            
+            Dim newStatus As String
+            newStatus = LCase(Trim(dataArr(dictNew(key), 9)))
+            
+            If LCase(oldStatus(key)) <> "уволен" And newStatus = "уволен" Then
+                
+                rowIndex = dictNew(key)
+                
+                Dim nextRowF As Long
+                nextRowF = wsFired.Cells(wsFired.Rows.Count, 1).End(xlUp).Row + 1
+                
+                WriteRowByMap wsFired, nextRowF, mapFired, dataArr, rowIndex
+                
+            End If
+            
+        End If
+        
+    Next key
+    
+    wbDB.Close False
+    wbCur.Save
+    wbCur.Close
+    
+    MsgBox "История (map) готова"
 
+End Sub
 
+Private Sub WriteRowByMap(ws As Worksheet, rowNum As Long, map As Variant, dataArr, srcRow As Long)
 
+    Dim j As Long
+    
+    For j = 0 To UBound(map)
+        
+        Select Case map(j)(1)
+            
+            Case "counter"
+                ws.Cells(rowNum, map(j)(0)).Value = rowNum - 1
+            
+            Case "col"
+                ws.Cells(rowNum, map(j)(0)).Value = dataArr(srcRow, map(j)(2))
+            
+            Case "date"
+                ws.Cells(rowNum, map(j)(0)).Value = Date
+                
+        End Select
+        
+    Next j
+
+End Sub
+—------------------------------------------
 
 Sub UPDATE_SECOND_LIST_FULL()
 
