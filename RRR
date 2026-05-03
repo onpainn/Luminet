@@ -1,3 +1,40 @@
+r = 0
+
+For Each key In dictNew.keys
+    
+    srcRow = dictNew(key)
+    
+    If LCase(dataArr(srcRow, 9)) = "уволен" Then
+        
+        r = r + 1
+        
+        For i = 0 To UBound(mapFired)
+            
+            Select Case mapFired(i)(1)
+                
+                Case "counter"
+                    outFired(r, mapFired(i)(0)) = r
+                
+                Case "col"
+                    outFired(r, mapFired(i)(0)) = dataArr(srcRow, mapFired(i)(2))
+                
+                Case "ext"
+                    email = LCase(dataArr(srcRow, 5))
+                    
+                    If dictExt.exists(email) Then
+                        extRow = dictExt(email)
+                        outFired(r, mapFired(i)(0)) = extArr(extRow, mapFired(i)(2))
+                    End If
+                    
+            End Select
+            
+        Next i
+        
+    End If
+    
+Next key
+
+
 Sub HISTORY_SYSTEM_FAST()
 
     Dim wbDB As Workbook, wbCur As Workbook, wbExt As Workbook
