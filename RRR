@@ -1,3 +1,10 @@
+Debug.Print "j=" & j & _
+            " type=" & map(j)(1) & _
+            " col=" & map(j)(2)
+
+
+
+
 Debug.Print "srcRow=" & srcRow & _
             " maxRow=" & UBound(dataArr, 1) & _
             " col=" & map(j)(2) & _
