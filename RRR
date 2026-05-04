@@ -3,49 +3,62 @@ Public Function ExtractTwoDates(ByVal txt As Variant) As Variant
     Dim regEx As Object, matches As Object
     Dim result(1 To 2) As String
     Dim s As String
-    Dim i As Long
-    
-    ' дефолт
+
     result(1) = ""
     result(2) = ""
-    
-    ' 1. защита от мусора VBA
+
     If IsError(txt) Or IsNull(txt) Or IsEmpty(txt) Then
         ExtractTwoDates = result
         Exit Function
     End If
-    
-    ' 2. приводим к строке безопасно
+
     s = Trim(CStr(txt))
-    
     If s = "" Then
         ExtractTwoDates = result
         Exit Function
     End If
-    
-    ' 3. regex
+
     Set regEx = CreateObject("VBScript.RegExp")
-    
     regEx.Pattern = "(\d{1,2}[\.\-/ ](?:\d{1,2}|[А-Яа-я]+)[\.\-/ ]\d{2,4})"
     regEx.Global = True
     regEx.IgnoreCase = True
-    
-    On Error GoTo safe_exit
-    
+
     If regEx.Test(s) Then
-        
         Set matches = regEx.Execute(s)
-        
+
         If matches.Count >= 1 Then result(1) = matches(0)
         If matches.Count >= 2 Then result(2) = matches(1)
-        
     End If
 
-safe_exit:
-    
     ExtractTwoDates = result
 
 End Function
+
+
+
+
+
+Case "date1", "date2"
+
+    Dim v As Variant
+    Dim d As Variant
+
+    v = dataArr(srcRow, map(j)(2))
+
+    If IsError(v) Or IsEmpty(v) Then
+        d = Array("", "")
+    Else
+        d = ExtractTwoDates(CStr(v))
+    End If
+
+    If map(j)(1) = "date1" Then
+        ws.Cells(r, map(j)(0)).Value = d(1)
+    Else
+        ws.Cells(r, map(j)(0)).Value = d(2)
+    End If
+
+
+
 
 
 
