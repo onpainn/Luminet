@@ -1,3 +1,42 @@
+Public Function ExtractTwoDates(txt As String) As Variant
+
+    Dim regEx As Object, matches As Object
+    Dim result(1 To 2) As String
+    Dim i As Long
+    
+    Set regEx = CreateObject("VBScript.RegExp")
+    
+    ' ловит даты типа:
+    ' 01.02.2024
+    ' 1/2/24
+    ' 01 фев 2024
+    regEx.Pattern = "(\d{1,2}[\.\-/ ](?:\d{1,2}|[А-Яа-я]+)[\.\-/ ]\d{2,4})"
+    regEx.Global = True
+    regEx.IgnoreCase = True
+    
+    If regEx.Test(txt) Then
+        
+        Set matches = regEx.Execute(txt)
+        
+        For i = 0 To matches.Count - 1
+            
+            If i = 0 Then result(1) = Trim(matches(i))
+            If i = 1 Then result(2) = Trim(matches(i))
+            
+        Next i
+        
+    End If
+    
+    ExtractTwoDates = result
+
+End Function
+
+
+
+
+
+
+
 Sub RUN_ALL_LISTS()
 
     Dim wbOut As Workbook
