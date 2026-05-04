@@ -1,3 +1,18 @@
+Debug.Print "srcRow=" & srcRow & _
+            " maxRow=" & UBound(dataArr, 1) & _
+            " col=" & map(j)(2) & _
+            " maxCol=" & UBound(dataArr, 2)
+
+
+
+
+
+
+
+
+
+
+
 Public Function ExtractTwoDates(txt As String) As Variant
 
     Dim regEx As Object, matches As Object
