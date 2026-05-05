@@ -1,3 +1,21 @@
+Dim rS As Long, rF As Long, rN As Long
+
+rS = wsSick.Cells(wsSick.Rows.Count, 1).End(xlUp).Row + 1
+rF = wsFired.Cells(wsFired.Rows.Count, 1).End(xlUp).Row + 1
+rN = wsNew.Cells(wsNew.Rows.Count, 1).End(xlUp).Row + 1
+
+If cS > 0 Then wsSick.Cells(rS, 1).Resize(cS, 20).Value = arrSick
+If cF > 0 Then wsFired.Cells(rF, 1).Resize(cF, 20).Value = arrFired
+If cN > 0 Then wsNew.Cells(rN, 1).Resize(cN, 20).Value = arrNew
+
+
+
+
+
+
+
+
+
 Sub BuildAccumulatedLists_FAST()
 
     Dim wbDB As Workbook, wbPS As Workbook
