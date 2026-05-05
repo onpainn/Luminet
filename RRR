@@ -1,3 +1,95 @@
+Sub UpdateAccumulated(wsSick As Worksheet, wsFired As Worksheet, wsNew As Worksheet, map As Variant)
+
+    Dim wbDB As Workbook, wbPS As Workbook
+    Dim wsDB As Worksheet, wsPS As Worksheet
+    
+    Dim dataArr, psArr
+    Dim dictPS As Object
+    
+    Dim i As Long
+    Dim id As String
+    Dim newStatus As String, oldStatus As String
+    
+    Dim outSick As Long, outFired As Long, outNew As Long
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    ' === файлы ===
+    Set wbDB = Workbooks.Open("C:\Files\Database.xlsx", ReadOnly:=True)
+    Set wbPS = Workbooks.Open("C:\Files\PS.xlsx")
+    
+    Set wsDB = wbDB.Sheets(1)
+    Set wsPS = wbPS.Sheets(2)
+    
+    dataArr = wsDB.Range("A2").CurrentRegion.Value
+    psArr = wsPS.Range("A2").CurrentRegion.Value
+    
+    ' === словарь старого состояния ===
+    Set dictPS = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(psArr, 1)
+        id = Trim(psArr(i, 9))
+        If id <> "" Then dictPS(id) = LCase(Trim(psArr(i, 17)))
+    Next i
+    
+    ' === куда писать (НЕ чистим, накопительный!) ===
+    outSick = wsSick.Cells(wsSick.Rows.Count, 1).End(xlUp).Row + 1
+    outFired = wsFired.Cells(wsFired.Rows.Count, 1).End(xlUp).Row + 1
+    outNew = wsNew.Cells(wsNew.Rows.Count, 1).End(xlUp).Row + 1
+    
+    ' === цикл как у тебя ===
+    For i = 1 To UBound(dataArr, 1)
+        
+        id = Trim(dataArr(i, 5))
+        newStatus = LCase(Trim(dataArr(i, 10)))
+        
+        If id = "" Then GoTo NextI
+        
+        ' --- новый
+        If Not dictPS.exists(id) Then
+            WriteByMap wsNew, outNew, map, dataArr, Empty, Nothing, i
+            outNew = outNew + 1
+            GoTo NextI
+        End If
+        
+        oldStatus = dictPS(id)
+        
+        ' --- больничный
+        If newStatus = "больничный" And oldStatus <> "больничный" Then
+            WriteByMap wsSick, outSick, map, dataArr, Empty, Nothing, i
+            outSick = outSick + 1
+        End If
+        
+        ' --- уволен
+        If newStatus = "уволен" And oldStatus <> "уволен" Then
+            WriteByMap wsFired, outFired, map, dataArr, Empty, Nothing, i
+            outFired = outFired + 1
+        End If
+        
+NextI:
+    Next i
+    
+    wbDB.Close False
+    wbPS.Close True
+    
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
 Sub UpdateAccumulatedLists()
 
     Dim wbDB As Workbook
