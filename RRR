@@ -1,3 +1,137 @@
+Sub BuildAccumulatedLists_FAST()
+
+    Dim wbDB As Workbook, wbPS As Workbook
+    Dim wsDB As Worksheet, wsPS As Worksheet
+    Dim wsSick As Worksheet, wsFired As Worksheet, wsNew As Worksheet
+    
+    Dim dataArr, psArr
+    Dim dictOld As Object
+    
+    Dim i As Long
+    Dim id As String
+    Dim newStatus As String, oldStatus As String
+    
+    Dim arrSick(), arrFired(), arrNew()
+    Dim cS As Long, cF As Long, cN As Long
+    
+    Dim map As Variant
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    Set wbDB = Workbooks.Open("C:\Files\Database.xlsx", ReadOnly:=True)
+    Set wbPS = Workbooks.Open("C:\Files\PS.xlsx")
+    
+    Set wsDB = wbDB.Sheets(1)
+    Set wsPS = wbPS.Sheets(2)
+    
+    Set wsSick = wbPS.Sheets(19)
+    Set wsFired = wbPS.Sheets(4)
+    Set wsNew = wbPS.Sheets(5)
+    
+    dataArr = wsDB.Range("A2").CurrentRegion.Value
+    psArr = wsPS.Range("A2").CurrentRegion.Value
+    
+    Set dictOld = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(psArr, 1)
+        id = Trim(psArr(i, 9))
+        If id <> "" Then dictOld(id) = LCase(Trim(psArr(i, 17)))
+    Next i
+    
+    map = GetMap()
+    
+    ' старт размеров
+    ReDim arrSick(1 To UBound(dataArr, 1), 1 To 20)
+    ReDim arrFired(1 To UBound(dataArr, 1), 1 To 20)
+    ReDim arrNew(1 To UBound(dataArr, 1), 1 To 20)
+    
+    cS = 0: cF = 0: cN = 0
+    
+    ' ========= ЦИКЛ =========
+    For i = 1 To UBound(dataArr, 1)
+        
+        id = Trim(dataArr(i, 5))
+        newStatus = LCase(Trim(dataArr(i, 10)))
+        
+        If id = "" Then GoTo NextI
+        
+        ' --- новый ---
+        If Not dictOld.exists(id) Then
+            
+            cN = cN + 1
+            CopyRowToArray arrNew, cN, dataArr, i, map
+            
+            GoTo NextI
+        End If
+        
+        oldStatus = dictOld(id)
+        
+        ' --- больничный ---
+        If newStatus = "больничный" And oldStatus <> "больничный" Then
+            
+            cS = cS + 1
+            CopyRowToArray arrSick, cS, dataArr, i, map
+            
+        End If
+        
+        ' --- уволен ---
+        If newStatus = "уволен" And oldStatus <> "уволен" Then
+            
+            cF = cF + 1
+            CopyRowToArray arrFired, cF, dataArr, i, map
+            
+        End If
+        
+NextI:
+    Next i
+    
+    ' ========= ВЫГРУЗКА =========
+    If cS > 0 Then wsSick.Range("A2").Resize(cS, 20).Value = arrSick
+    If cF > 0 Then wsFired.Range("A2").Resize(cF, 20).Value = arrFired
+    If cN > 0 Then wsNew.Range("A2").Resize(cN, 20).Value = arrNew
+    
+    wbDB.Close False
+    wbPS.Close True
+    
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+
+End Sub
+
+Sub CopyRowToArray(ByRef arr, ByVal rowIndex As Long, dataArr, ByVal i As Long, map As Variant)
+
+    Dim j As Long
+    Dim col As Long
+    
+    For j = 0 To UBound(map)
+        
+        col = map(j)(2)
+        
+        If map(j)(1) = "col" Then
+            arr(rowIndex, map(j)(0)) = dataArr(i, col)
+        End If
+        
+        If map(j)(1) = "counter" Then
+            arr(rowIndex, map(j)(0)) = rowIndex
+        End If
+        
+    Next j
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
 Sub BuildAccumulatedLists()
 
     Dim wbDB As Workbook, wbPS As Workbook
