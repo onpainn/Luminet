@@ -1,3 +1,10 @@
+' --- ДОП ФИЛЬТР >10 ДНЕЙ (ТОЛЬКО ДЛЯ ЛИСТА 14)
+If ws.Index = 14 Then
+    If Not IsAbsentOver10Days(dataArr(i, 10)) Then GoTo NextI
+End If
+
+
+
 Public Function IsAbsentOver10Days(ByVal v As Variant) As Boolean
 
     ' нет даты → считаем как >10 дней
