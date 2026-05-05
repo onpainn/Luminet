@@ -1,3 +1,41 @@
+Public Function IsAbsentOver10Days(ByVal v As Variant) As Boolean
+
+    ' нет даты → считаем как >10 дней
+    If IsError(v) Or IsEmpty(v) Or v = "" Then
+        IsAbsentOver10Days = True
+        Exit Function
+    End If
+
+    ' если это дата
+    If IsDate(v) Then
+        If Date - CDate(v) > 10 Then
+            IsAbsentOver10Days = True
+        Else
+            IsAbsentOver10Days = False
+        End If
+        Exit Function
+    End If
+
+    ' мусор → тоже считаем как >10 дней
+    IsAbsentOver10Days = True
+
+End Function
+
+If IsAbsentOver10Days(dataArr(srcRow, 10)) Then
+
+    WriteByMap ws14, outRow14, map14, dataArr, extArr, dictExt, srcRow
+    outRow14 = outRow14 + 1
+
+End If
+
+
+
+
+
+
+
+
+
 Public Function ExtractTwoDates(ByVal txt As Variant) As Variant
 
     Dim regEx As Object, matches As Object
