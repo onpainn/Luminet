@@ -1,3 +1,103 @@
+Sub UpdateAccumulatedLists()
+
+    Dim wbDB As Workbook
+    Dim wsDB As Worksheet
+    Dim wsPS As Worksheet
+    
+    Dim wsSick As Worksheet, wsFired As Worksheet, wsNew As Worksheet
+    
+    Dim dataArr, psArr
+    Dim dictPS As Object
+    
+    Dim i As Long
+    Dim id As String
+    Dim newStatus As String, oldStatus As String
+    
+    Dim outSick As Long, outFired As Long, outNew As Long
+    
+    ' === ЛИСТЫ ===
+    Set wsPS = ThisWorkbook.Sheets(2)   ' полный список
+    Set wsSick = ThisWorkbook.Sheets(19)
+    Set wsFired = ThisWorkbook.Sheets(4)
+    Set wsNew = ThisWorkbook.Sheets(5)
+    
+    ' === ОТКРЫВАЕМ БД ===
+    Set wbDB = Workbooks.Open("C:\Files\Database.xlsx", ReadOnly:=True)
+    Set wsDB = wbDB.Sheets(1)
+    
+    dataArr = wsDB.Range("A2").CurrentRegion.Value
+    psArr = wsPS.Range("A2").CurrentRegion.Value
+    
+    ' === СЛОВАРЬ ПС (старое состояние) ===
+    Set dictPS = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(psArr, 1)
+        id = Trim(psArr(i, 9)) ' ID в ПС (колонка 9)
+        If id <> "" Then
+            dictPS(id) = LCase(Trim(psArr(i, 17))) ' статус (колонка 17)
+        End If
+    Next i
+    
+    ' === НАЧАЛЬНЫЕ СТРОКИ (ДОБАВЛЯЕМ В КОНЕЦ) ===
+    outSick = wsSick.Cells(wsSick.Rows.Count, 1).End(xlUp).Row + 1
+    outFired = wsFired.Cells(wsFired.Rows.Count, 1).End(xlUp).Row + 1
+    outNew = wsNew.Cells(wsNew.Rows.Count, 1).End(xlUp).Row + 1
+    
+    ' === ОСНОВНОЙ ЦИКЛ ===
+    For i = 1 To UBound(dataArr, 1)
+        
+        id = Trim(dataArr(i, 5)) ' ID в БД (колонка 5)
+        newStatus = LCase(Trim(dataArr(i, 10))) ' статус БД
+        
+        If id = "" Then GoTo NextI
+        
+        ' === НОВЫЙ ===
+        If Not dictPS.exists(id) Then
+            
+            WriteByMap wsNew, outNew, mapNew, dataArr, Empty, Nothing, i
+            outNew = outNew + 1
+            
+            GoTo NextI
+        End If
+        
+        ' === СТАРЫЙ СТАТУС ===
+        oldStatus = dictPS(id)
+        
+        ' === БОЛЬНИЧНЫЙ ===
+        If newStatus = "больничный" And oldStatus <> "больничный" Then
+            
+            WriteByMap wsSick, outSick, mapSick, dataArr, Empty, Nothing, i
+            outSick = outSick + 1
+            
+        End If
+        
+        ' === УВОЛЕН ===
+        If newStatus = "уволен" And oldStatus <> "уволен" Then
+            
+            WriteByMap wsFired, outFired, mapFired, dataArr, Empty, Nothing, i
+            outFired = outFired + 1
+            
+        End If
+        
+NextI:
+    Next i
+    
+    wbDB.Close False
+    
+End Sub
+
+
+
+
+
+
+
+
+
+
+
+
+
 ' --- ДОП ФИЛЬТР >10 ДНЕЙ (ТОЛЬКО ДЛЯ ЛИСТА 14)
 If ws.Index = 14 Then
     If Not IsAbsentOver10Days(dataArr(i, 10)) Then GoTo NextI
