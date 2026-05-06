@@ -1,3 +1,46 @@
+Sub FormatOutput(ws As Worksheet, Optional headerRow As Long = 1)
+
+    Dim lastRow As Long, lastCol As Long
+    Dim rng As Range
+
+    With ws
+        
+        ' найти границы данных
+        lastRow = .Cells(.Rows.Count, 1).End(xlUp).Row
+        lastCol = .Cells(headerRow, .Columns.Count).End(xlToLeft).Column
+        
+        If lastRow < headerRow Then Exit Sub
+        
+        Set rng = .Range(.Cells(headerRow, 1), .Cells(lastRow, lastCol))
+        
+        ' оформление
+        .Columns.AutoFit
+        
+        .Rows(headerRow).Font.Bold = True
+        
+        rng.HorizontalAlignment = xlLeft
+        rng.VerticalAlignment = xlCenter
+        
+        ' границы
+        With rng.Borders
+            .LineStyle = xlContinuous
+            .Weight = xlThin
+        End With
+        
+    End With
+
+End Sub
+
+
+
+
+
+
+
+
+
+
+
 Sub AddSickToBottom()
 
     Dim wbDB As Workbook, wbPS As Workbook
