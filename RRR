@@ -1,3 +1,17 @@
+Function InArray(val As String, arr As Variant) As Boolean
+    Dim i As Long
+    For i = LBound(arr) To UBound(arr)
+        If arr(i) = val Then
+            InArray = True
+            Exit Function
+        End If
+    Next i
+    InArray = False
+End Function
+
+
+
+
 Dim rS As Long, rF As Long, rN As Long
 
 rS = wsSick.Cells(wsSick.Rows.Count, 1).End(xlUp).Row + 1
