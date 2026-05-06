@@ -1,3 +1,92 @@
+Sub AddSickToBottom()
+
+    Dim wbDB As Workbook, wbPS As Workbook
+    Dim wsDB As Worksheet, wsPS As Worksheet, wsOut As Worksheet
+    
+    Dim dataArr, psArr
+    Dim dictOld As Object
+    
+    Dim i As Long
+    Dim id As String
+    Dim newStatus As String, oldStatus As String
+    
+    Dim lastRow As Long
+    Dim counter As Long
+    
+    Set wbDB = Workbooks.Open("C:\Files\Database.xlsx", ReadOnly:=True)
+    Set wbPS = Workbooks.Open("C:\Files\PS.xlsx")
+    
+    Set wsDB = wbDB.Sheets(1)
+    Set wsPS = wbPS.Sheets(2)
+    Set wsOut = wbPS.Sheets(19) ' больничные
+    
+    dataArr = wsDB.Range("A2").CurrentRegion.Value
+    psArr = wsPS.Range("A2").CurrentRegion.Value
+    
+    ' --- словарь старых статусов ---
+    Set dictOld = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(psArr, 1)
+        id = Trim(psArr(i, 9))
+        If id <> "" Then
+            dictOld(id) = LCase(Trim(psArr(i, 17)))
+        End If
+    Next i
+    
+    ' --- НАХОДИМ КОНЕЦ СПИСКА ---
+    lastRow = wsOut.Cells(wsOut.Rows.Count, 1).End(xlUp).Row
+    
+    If lastRow < 2 Then
+        counter = 1
+    Else
+        counter = wsOut.Cells(lastRow, 1).Value + 1
+    End If
+    
+    ' ========= ЦИКЛ =========
+    For i = 1 To UBound(dataArr, 1)
+        
+        id = Trim(dataArr(i, 5))
+        newStatus = LCase(Trim(dataArr(i, 10)))
+        
+        If id = "" Then GoTo NextI
+        
+        If Not dictOld.exists(id) Then GoTo NextI
+        
+        oldStatus = dictOld(id)
+        
+        ' === СТАЛ БОЛЬНИЧНЫМ ===
+        If newStatus = "больничный" And oldStatus <> "больничный" Then
+            
+            lastRow = lastRow + 1
+            
+            ' --- counter ---
+            wsOut.Cells(lastRow, 1).Value = counter
+            counter = counter + 1
+            
+            ' --- ДАННЫЕ (ПРИМЕР) ---
+            wsOut.Cells(lastRow, 2).Value = dataArr(i, 5)  ' ID
+            wsOut.Cells(lastRow, 3).Value = dataArr(i, 2)  ' категория
+            wsOut.Cells(lastRow, 4).Value = dataArr(i, 10) ' статус
+            
+        End If
+        
+NextI:
+    Next i
+    
+    wbDB.Close False
+    wbPS.Close True
+
+End Sub
+
+
+
+
+
+
+
+
+
+
 Function InArray(val As String, arr As Variant) As Boolean
     Dim i As Long
     For i = LBound(arr) To UBound(arr)
