@@ -1,0 +1,115 @@
+Option Explicit
+
+Sub ДобавитьСобытие()
+
+    Dim wbDB As Workbook
+    Dim wsEvents As Worksheet
+    Dim wsMain As Worksheet
+    
+    Dim wsForm As Worksheet
+    
+    Dim lastRowEvents As Long
+    Dim lastRowMain As Long
+    
+    Dim eventDate As Variant
+    Dim employeeID As String
+    Dim eventDesc As String
+    Dim returnDate As Variant
+    
+    Dim normalizedID As String
+    
+    Dim i As Long
+    Dim foundRow As Long
+    
+    Dim nextEventNumber As Long
+    
+    ' === УКАЗАТЬ ИМЯ ФАЙЛА ГЛАВНОЙ БД ===
+    Set wbDB = Workbooks("ГлавнаяБД.xlsx")
+    
+    ' Листы главной БД
+    Set wsMain = wbDB.Sheets(2)
+    Set wsEvents = wbDB.Sheets(3)
+    
+    ' Лист формы (текущий файл)
+    Set wsForm = ThisWorkbook.Sheets(1)
+    
+    ' ===== ЧТЕНИЕ ФОРМЫ =====
+    
+    eventDate = wsForm.Range("B2").Value
+    employeeID = wsForm.Range("B3").Value
+    eventDesc = LCase(Trim(wsForm.Range("B4").Value))
+    returnDate = wsForm.Range("B5").Value
+    
+    ' ===== НОРМАЛИЗАЦИЯ ID =====
+    
+    normalizedID = NormalizeID(employeeID)
+    
+    ' ===== ДОБАВЛЕНИЕ СОБЫТИЯ =====
+    
+    lastRowEvents = wsEvents.Cells(wsEvents.Rows.Count, 1).End(xlUp).Row + 1
+    
+    ' № события
+    If lastRowEvents = 2 Then
+        nextEventNumber = 1
+    Else
+        nextEventNumber = wsEvents.Cells(lastRowEvents - 1, 1).Value + 1
+    End If
+    
+    ' Запись события
+    wsEvents.Cells(lastRowEvents, 1).Value = nextEventNumber
+    wsEvents.Cells(lastRowEvents, 2).Value = eventDate
+    wsEvents.Cells(lastRowEvents, 3).Value = normalizedID
+    wsEvents.Cells(lastRowEvents, 4).Value = eventDesc
+    wsEvents.Cells(lastRowEvents, 5).Value = returnDate
+    
+    ' ===== ПОИСК ID В ГЛАВНОЙ БД =====
+    
+    lastRowMain = wsMain.Cells(wsMain.Rows.Count, 5).End(xlUp).Row
+    
+    foundRow = 0
+    
+    For i = 2 To lastRowMain
+    
+        If NormalizeID(wsMain.Cells(i, 5).Value) = normalizedID Then
+            foundRow = i
+            Exit For
+        End If
+        
+    Next i
+    
+    ' ===== ОБНОВЛЕНИЕ СТАТУСА =====
+    
+    If foundRow > 0 Then
+    
+        If eventDesc = "отпуск" Then
+            wsMain.Cells(foundRow, 9).Value = "Отпуск"
+            
+        ElseIf eventDesc = "из отпуска" Then
+            wsMain.Cells(foundRow, 9).Value = "Работает"
+            
+        End If
+        
+    Else
+    
+        MsgBox "ID не найден в главной базе!", vbExclamation
+        
+    End If
+    
+    ' ===== ОЧИСТКА ФОРМЫ =====
+    
+    wsForm.Range("B2:B5").ClearContents
+    
+    MsgBox "Событие успешно добавлено!", vbInformation
+
+End Sub
+
+
+Function NormalizeID(txt As String) As String
+
+    txt = LCase(txt)
+    txt = Replace(txt, " ", "")
+    txt = Trim(txt)
+    
+    NormalizeID = txt
+
+End Function
