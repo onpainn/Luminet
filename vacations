@@ -1,3 +1,15 @@
+Dim wbDB As Workbook
+Dim dbPath As String
+
+dbPath = ThisWorkbook.Path & "\" & Dir(ThisWorkbook.Path & "\*.xlsx")
+
+Set wbDB = Workbooks.Open(dbPath)
+
+
+
+
+
+
 Option Explicit
 
 Sub КтоВыходитСегодня()
