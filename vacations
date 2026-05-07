@@ -1,5 +1,138 @@
 Option Explicit
 
+Sub КтоВыходитСегодня()
+
+    Dim wbDB As Workbook
+    
+    Dim wsMain As Worksheet
+    Dim wsEvents As Worksheet
+    
+    Dim lastRowMain As Long
+    Dim lastRowEvents As Long
+    
+    Dim dict As Object
+    Dim latestDates As Object
+    
+    Dim i As Long
+    
+    Dim empID As String
+    Dim statusText As String
+    
+    Dim returnDate As Variant
+    
+    Dim resultText As String
+    
+    ' ===== ПОДКЛЮЧЕНИЕ БД =====
+    
+    On Error Resume Next
+    Set wbDB = Workbooks("ГлавнаяБД.xlsx")
+    On Error GoTo 0
+    
+    If wbDB Is Nothing Then
+        Set wbDB = Workbooks.Open("D:\HR\ГлавнаяБД.xlsx")
+    End If
+    
+    Set wsMain = wbDB.Sheets(2)
+    Set wsEvents = wbDB.Sheets(3)
+    
+    ' ===== СЛОВАРИ =====
+    
+    Set dict = CreateObject("Scripting.Dictionary")
+    Set latestDates = CreateObject("Scripting.Dictionary")
+    
+    ' ===== СОБИРАЕМ ЛЮДЕЙ В ОТПУСКЕ =====
+    
+    lastRowMain = wsMain.Cells(wsMain.Rows.Count, 5).End(xlUp).Row
+    
+    For i = 2 To lastRowMain
+    
+        statusText = LCase(Trim(wsMain.Cells(i, 9).Value))
+        
+        If statusText = "отпуск" Then
+        
+            empID = NormalizeID(wsMain.Cells(i, 5).Value)
+            
+            If empID <> "" Then
+                dict(empID) = True
+            End If
+            
+        End If
+        
+    Next i
+    
+    ' ===== ИЩЕМ ПОСЛЕДНИЕ СОБЫТИЯ =====
+    
+    lastRowEvents = wsEvents.Cells(wsEvents.Rows.Count, 3).End(xlUp).Row
+    
+    For i = 2 To lastRowEvents
+    
+        empID = NormalizeID(wsEvents.Cells(i, 3).Value)
+        
+        If dict.exists(empID) Then
+        
+            returnDate = wsEvents.Cells(i, 5).Value
+            
+            If IsDate(returnDate) Then
+            
+                latestDates(empID) = CDate(returnDate)
+                
+            End If
+            
+        End If
+        
+    Next i
+    
+    ' ===== ПРОВЕРКА НА СЕГОДНЯ =====
+    
+    resultText = ""
+    
+    Dim key As Variant
+    
+    For Each key In latestDates.Keys
+    
+        If latestDates(key) = Date Then
+        
+            resultText = resultText & key & vbCrLf
+            
+        End If
+        
+    Next key
+    
+    ' ===== ВЫВОД =====
+    
+    If resultText = "" Then
+    
+        MsgBox "Сегодня никто не выходит из отпуска", vbInformation
+        
+    Else
+    
+        MsgBox "Сегодня выходят из отпуска:" & vbCrLf & vbCrLf & resultText, vbInformation
+        
+    End If
+
+End Sub
+
+
+Function NormalizeID(txt As String) As String
+
+    txt = LCase(txt)
+    txt = Replace(txt, " ", "")
+    txt = Trim(txt)
+    
+    NormalizeID = txt
+
+End Function
+
+
+
+
+
+
+
+
+
+Option Explicit
+
 Sub ДобавитьСобытие()
 
     Dim wbDB As Workbook
