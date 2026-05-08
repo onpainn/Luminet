@@ -1,3 +1,39 @@
+Function NormalizeID(txt As Variant) As String
+
+    Dim result As String
+    
+    result = CStr(txt)
+    
+    ' нижний регистр
+    result = LCase(result)
+    
+    ' обычные пробелы
+    result = Replace(result, " ", "")
+    
+    ' неразрывные пробелы
+    result = Replace(result, Chr(160), "")
+    
+    ' табы
+    result = Replace(result, vbTab, "")
+    
+    ' переносы
+    result = Replace(result, vbCr, "")
+    result = Replace(result, vbLf, "")
+    
+    ' trim
+    result = Trim(result)
+    
+    NormalizeID = result
+
+End Function
+
+
+
+
+
+
+
+
 Sub FormatOutput(ws As Worksheet, Optional headerRow As Long = 1)
 
     Dim lastRow As Long, lastCol As Long
