@@ -1,3 +1,192 @@
+Sub Update_New_And_Fired()
+
+    Dim wbDB As Workbook
+    Dim wbRes As Workbook
+    
+    Dim wsDB As Worksheet
+    Dim wsFull As Worksheet
+    Dim wsNew As Worksheet
+    Dim wsFired As Worksheet
+    
+    Dim dataArr
+    Dim fullArr
+    
+    Dim dictOld As Object
+    
+    Dim i As Long
+    
+    Dim id As String
+    Dim newStatus As String
+    Dim oldStatus As String
+    Dim categoryVal As String
+    
+    Dim lastNew As Long
+    Dim lastFired As Long
+    
+    Dim counterNew As Long
+    Dim counterFired As Long
+    
+    Dim categories As Variant
+    
+    ' =========================
+    ' КАТЕГОРИИ
+    ' =========================
+    categories = Array("студенты", "рабочие", "обучение")
+    
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+    
+    ' =========================
+    ' ФАЙЛЫ
+    ' =========================
+    Set wbDB = Workbooks.Open("C:\Files\Database.xlsx", ReadOnly:=True)
+    Set wbRes = Workbooks.Open("C:\Files\Result.xlsx")
+    
+    Set wsDB = wbDB.Sheets(1)
+    
+    Set wsFull = wbRes.Sheets(2)
+    Set wsFired = wbRes.Sheets(4)
+    Set wsNew = wbRes.Sheets(5)
+    
+    ' =========================
+    ' МАССИВЫ
+    ' =========================
+    dataArr = wsDB.Range("A2").CurrentRegion.Value
+    fullArr = wsFull.Range("A2").CurrentRegion.Value
+    
+    ' =========================
+    ' СТАРЫЕ ДАННЫЕ
+    ' =========================
+    Set dictOld = CreateObject("Scripting.Dictionary")
+    
+    For i = 1 To UBound(fullArr, 1)
+        
+        id = Trim(fullArr(i, 10))
+        
+        If id <> "" Then
+            dictOld(id) = LCase(Trim(fullArr(i, 17)))
+        End If
+        
+    Next i
+    
+    ' =========================
+    ' ПОСЛЕДНИЕ СТРОКИ
+    ' =========================
+    lastNew = wsNew.Cells(wsNew.Rows.Count, 1).End(xlUp).Row
+    lastFired = wsFired.Cells(wsFired.Rows.Count, 1).End(xlUp).Row
+    
+    ' =========================
+    ' COUNTER
+    ' =========================
+    If lastNew < 2 Then
+        counterNew = 1
+    Else
+        counterNew = wsNew.Cells(lastNew, 1).Value + 1
+    End If
+    
+    If lastFired < 2 Then
+        counterFired = 1
+    Else
+        counterFired = wsFired.Cells(lastFired, 1).Value + 1
+    End If
+    
+    ' =========================
+    ' ОСНОВНОЙ ЦИКЛ
+    ' =========================
+    For i = 1 To UBound(dataArr, 1)
+        
+        categoryVal = LCase(Trim(dataArr(i, 2)))
+        
+        ' фильтр категории
+        If Not InArray(categoryVal, categories) Then GoTo NextI
+        
+        id = Trim(dataArr(i, 4))
+        
+        If id = "" Then GoTo NextI
+        
+        newStatus = LCase(Trim(dataArr(i, 10)))
+        
+        ' =====================
+        ' НОВЫЕ
+        ' =====================
+        If Not dictOld.exists(id) Then
+            
+            If newStatus = "работает" Then
+                
+                lastNew = lastNew + 1
+                
+                wsNew.Cells(lastNew, 1).Value = counterNew
+                wsNew.Cells(lastNew, 2).Value = id
+                wsNew.Cells(lastNew, 3).Value = categoryVal
+                wsNew.Cells(lastNew, 4).Value = newStatus
+                
+                counterNew = counterNew + 1
+                
+            End If
+            
+            GoTo NextI
+        End If
+        
+        oldStatus = dictOld(id)
+        
+        ' =====================
+        ' УВОЛЕННЫЕ
+        ' =====================
+        If newStatus = "уволен" And oldStatus <> "уволен" Then
+            
+            lastFired = lastFired + 1
+            
+            wsFired.Cells(lastFired, 1).Value = counterFired
+            wsFired.Cells(lastFired, 2).Value = id
+            wsFired.Cells(lastFired, 3).Value = categoryVal
+            wsFired.Cells(lastFired, 4).Value = newStatus
+            
+            counterFired = counterFired + 1
+            
+        End If
+        
+NextI:
+    Next i
+    
+    wbDB.Close False
+    
+    wbRes.Save
+    wbRes.Close
+    
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+
+End Sub
+Function InArray(val As String, arr As Variant) As Boolean
+
+    Dim i As Long
+    
+    For i = LBound(arr) To UBound(arr)
+        
+        If arr(i) = val Then
+            InArray = True
+            Exit Function
+        End If
+        
+    Next i
+    
+    InArray = False
+
+End Function
+
+
+
+
+
+
+
+
+
+
+
+
 Function NormalizeID(txt As Variant) As String
 
     Dim result As String
