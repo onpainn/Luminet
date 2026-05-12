@@ -1,3 +1,4 @@
+
 Sub СделатьКопиюБазы()
 
     Dim sourcePath As String
@@ -85,3 +86,69 @@ Sub СделатьКопиюБазы()
     MsgBox "Копия базы создана!", vbInformation
 
 End Sub
+
+
+
+
+
+Sub ПереносДанных()
+
+    Dim wbSource As Workbook
+    Dim wbTarget As Workbook
+    
+    Dim wsSource As Worksheet
+    Dim wsTarget As Worksheet
+    
+    Dim lastRowSource As Long
+    Dim targetRow As Long
+    
+    Dim i As Long
+    
+    ' === ОТКРЫВАЕМ ФАЙЛЫ ===
+    
+    Set wbSource = Workbooks.Open("C:\BD\source.xlsx")
+    Set wbTarget = Workbooks.Open("C:\BD\target.xlsx")
+    
+    Set wsSource = wbSource.Sheets("Лист1")
+    Set wsTarget = wbTarget.Sheets("Лист1")
+    
+    
+    ' === ПОСЛЕДНЯЯ СТРОКА ===
+    
+    lastRowSource = wsSource.Cells(wsSource.Rows.Count, 1).End(xlUp).Row
+    
+    ' Куда вставлять
+    targetRow = wsTarget.Cells(wsTarget.Rows.Count, 1).End(xlUp).Row + 1
+    
+    
+    ' === ПЕРЕНОС ДАННЫХ ===
+    
+    For i = 2 To lastRowSource
+    
+        ' A -> D
+        wsTarget.Cells(targetRow, 4).Value = wsSource.Cells(i, 1).Value
+        
+        ' C -> A
+        wsTarget.Cells(targetRow, 1).Value = wsSource.Cells(i, 3).Value
+        
+        ' F -> B
+        wsTarget.Cells(targetRow, 2).Value = wsSource.Cells(i, 6).Value
+        
+        ' H -> G
+        wsTarget.Cells(targetRow, 7).Value = wsSource.Cells(i, 8).Value
+        
+        ' НЕ НУЖНЫЕ КОЛОНКИ ПРОСТО НЕ УКАЗЫВАЕМ
+        
+        targetRow = targetRow + 1
+        
+    Next i
+    
+    
+    ' === СОХРАНЕНИЕ ===
+    
+    wbTarget.Save
+    
+    MsgBox "Перенос завершён!"
+
+End Sub
+
