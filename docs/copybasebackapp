@@ -1,3 +1,64 @@
+Sub ПереносБД()
+
+    Dim wsS As Worksheet
+    Dim wsT As Worksheet
+
+    Dim arrMap
+    Dim lastRowS As Long
+    Dim lastRowT As Long
+
+    Dim i As Long
+    Dim colS As Long
+    Dim colT As Long
+
+    Set wsS = Workbooks("source.xlsx").Sheets("Лист1")
+    Set wsT = Workbooks("target.xlsx").Sheets("Лист1")
+
+    
+    ' ===== СООТВЕТСТВИЕ =====
+    
+    arrMap = Array( _
+        Array(1, 4), _
+        Array(3, 1), _
+        Array(6, 2), _
+        Array(8, 7) _
+    )
+
+
+    lastRowS = wsS.Cells(wsS.Rows.Count, 1).End(xlUp).Row
+    lastRowT = wsT.Cells(wsT.Rows.Count, 1).End(xlUp).Row + 1
+
+
+    For i = 0 To UBound(arrMap)
+
+        colS = arrMap(i)(0)
+        colT = arrMap(i)(1)
+
+        wsT.Range( _
+            wsT.Cells(lastRowT, colT), _
+            wsT.Cells(lastRowT + lastRowS - 2, colT) _
+        ).Value = _
+        wsS.Range( _
+            wsS.Cells(2, colS), _
+            wsS.Cells(lastRowS, colS) _
+        ).Value
+
+    Next i
+
+
+    MsgBox "Перенос завершён"
+
+End Sub
+
+
+
+
+
+
+
+
+
+
 
 Sub СделатьКопиюБазы()
 
